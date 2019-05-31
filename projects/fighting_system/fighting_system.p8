@@ -3,8 +3,11 @@ version 18
 __lua__
 -- eternal fight
 -- by badrick
+
 #include player.p8
+#include enemy.p8
 #include hud.p8
+#include action.p8
 
 function _update()
   toggle_hud_cmd()
@@ -17,6 +20,7 @@ function _draw()
   draw_hud_commands()
 
   handle_hud_menu()
+  handle_player_mode()
 end
 
 __gfx__
