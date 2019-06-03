@@ -16,7 +16,7 @@ function _update60()
  -- movement
  -- 	left
  if btn(0) then
-  if (x_speed < max_speed) then
+  if (x_speed > -max_speed) then
    x_speed -= 0.125
   end
  end
@@ -28,7 +28,7 @@ function _update60()
  end
  --  up
  if btn(2) then
-  if (y_speed < max_speed) then
+  if (y_speed > -max_speed) then
    y_speed -= 0.125
   end
  end
@@ -69,7 +69,6 @@ function _update60()
  x+=x_speed
  y+=y_speed
  
- 
  -- collision
  --  left
  if x < 0 then
@@ -80,7 +79,7 @@ function _update60()
    x_speed = max_speed
  end
  --  right
- if x >120 then
+ if x >127 - w then
 --   while x > 120 do
 --   	x-=1
 --   end
@@ -96,7 +95,7 @@ function _update60()
 		y_speed = max_speed
  end
  --  down
- if y >120 then
+ if y >127 - h then
 --   while y > 120 do
 --   	y-=1
 --   end
