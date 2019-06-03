@@ -29,16 +29,6 @@ function cmd_escape()
   check_values()
 end
 
-function player_defense_total()
-  local def_total = 0
-  for k,v in pairs(player.equipment) do
-    if type(v) == "table" and v.def then
-      def_total+=v.def
-    end
-  end
-  return def_total
-end
-
 function player_check_conditions()
   for i=1,#player.conditions do
     add(logbuffer,{"you are " .. player.conditions[i].name,11})
@@ -59,7 +49,7 @@ end
 
 function player_attack()
   local dmg = flr(rnd(player.equipment.weapon.dmg[2] * player.equipment.weapon.dmg[1] - player.equipment.weapon.dmg[1] + 1)) + player.equipment.weapon.dmg[1]
-  dmg += player.attr.atk - enemy.equipment.shield.def - enemy.attr.def
+  dmg += player.attr.atk[1] - enemy.equipment.shield.def - enemy.attr.def
   if dmg <= 0 then dmg = 1 end
 
   enemy.hp[1] -= dmg
@@ -68,7 +58,7 @@ end
 
 function enemy_attack()
   local dmg = flr(rnd(enemy.equipment.weapon.dmg[2] * enemy.equipment.weapon.dmg[1] - enemy.equipment.weapon.dmg[1] + 1)) + enemy.equipment.weapon.dmg[1]
-  dmg += enemy.attr.atk - player_defense_total() - player.attr.def
+  dmg += enemy.attr.atk - player_defense_total() - player.attr.def[1]
   if dmg <= 0 then dmg = 1 end
 
   player.hp[1] -= dmg
@@ -78,7 +68,7 @@ end
 function player_escape()
   local chance_to_esc = 20
   add(logbuffer,{"you try to flee", 7})
-  if flr(rnd(chance_to_esc-player.attr.luc + 1)) + player.attr.luc == chance_to_esc then
+  if flr(rnd(chance_to_esc-player.attr.luc[1] + 1)) + player.attr.luc[1] == chance_to_esc then
     add(logbuffer,{"it works!", 7})
   else
     add(logbuffer,{"it fails...", 7})

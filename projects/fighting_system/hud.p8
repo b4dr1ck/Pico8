@@ -32,13 +32,14 @@ end
 
 -- draws the hud menu for the player stats
 function draw_hud_stats()
+  add_substr_bon_equipment()
   print("hp: ("..player.hp[1].."/"..player.hp[2]..")" ..
          "\nmp: ("..player.mp[1].."/"..player.mp[2]..")",3,3,7)
   line(0,16,127,16,6)
-  print("atk: "..player.attr.atk.. "\ndef: "..player.attr.def..
-        "\nmag: "..player.attr.mag.. "\nluc: "..player.attr.luc,3,19,7)
-  print("fir: "..player.resist.fire.. "\nwat: "..player.resist.water..
-        "\nwin: "..player.resist.wind.. "\near: "..player.resist.earth,50,19,7)
+  print("atk: "..player.attr.atk[1] .. " +" .. player.attr.atk[2] .. "\ndef: "..player.attr.def[1].. " +" .. player.attr.def[2] ..
+        "\nmag: "..player.attr.mag[1].. " +" .. player.attr.mag[2] .. "\nluc: "..player.attr.luc[1] .. " +" .. player.attr.luc[2],3,19,7)
+  print("fir: "..player.resist.fire[1] .. " +" .. player.resist.fire[2] .. "\nwat: ".. player.resist.water[1] ..  " +" .. player.resist.water[2] ..
+        "\nwin: "..player.resist.wind[1].. " +" .. player.resist.wind[2].. "\near: ".. player.resist.earth[1] .. " +" .. player.resist.earth[2],50,19,7)
   line(0,44,127,44,6)
   if #player.conditions == 0 then print("no conditions",3,47,7)end
   for i=1,#player.conditions do
