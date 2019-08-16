@@ -1,6 +1,8 @@
 pico-8 cartridge // http://www.pico-8.com
-version 16
+version 18
 __lua__
+function _update60()
+end	
 	
 function _draw()
 	cls()
