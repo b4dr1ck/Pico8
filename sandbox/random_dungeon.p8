@@ -56,13 +56,6 @@ function render_3d_wall(position)
             end
         end
     end
-    if position == "3C" then
-        for x=5,10  do
-            for y=5,10 do
-                spr(10,x*8,y*8)
-            end
-        end
-    end
     if position == "3R" then
         spr(11,10*8,5*8,1,1,true)
         spr(12,10*8,10*8,1,1,true)
@@ -75,6 +68,14 @@ function render_3d_wall(position)
             end
         end
     end
+    if position == "3C" then
+        for x=5,10  do
+            for y=5,10 do
+                spr(7,x*8,y*8)
+            end
+        end
+    end
+    
     if position == "2L" then
         spr(8,4*8,4*8)
         spr(9,4*8,11*8)
@@ -89,13 +90,6 @@ function render_3d_wall(position)
         for x=0,2 do
             for y=3,12 do
                 spr(4,x*8,y*8)
-            end
-        end
-    end    
-    if position == "2C" then
-        for x=3,12  do
-            for y=3,12 do
-                spr(7,x*8,y*8)
             end
         end
     end    
@@ -116,6 +110,13 @@ function render_3d_wall(position)
             end
         end
     end   
+    if position == "2C" then
+        for x=3,12  do
+            for y=3,12 do
+                spr(4,x*8,y*8)
+            end
+        end
+    end    
     
     if position == "1L" then
         spr(5,2*8,2*8)
@@ -131,14 +132,7 @@ function render_3d_wall(position)
         for y=1,14 do
             spr(1,0*8,y*8)
         end
-    end    
-    if position == "1C" then
-        for x=1,14  do
-            for y=1,14 do
-                spr(4,x*8,y*8)
-            end
-        end
-    end    
+    end     
     if position == "1R" then
         spr(5,13*8,2*8,1,1,true)
         spr(6,13*8,13*8,1,1,true)
@@ -154,6 +148,13 @@ function render_3d_wall(position)
             spr(1,15*8,y*8)
         end
     end    
+    if position == "1C" then
+        for x=1,14  do
+            for y=1,14 do
+                spr(1,x*8,y*8)
+            end
+        end
+    end   
     
     if position == "0L" then
         spr(2,0*8,0*8)
@@ -284,68 +285,68 @@ function _draw()
     if (player.d == 0) then
         if (player.y - 3) >= 1 then
             if dungeon[player.y-3][player.x-1] == 1 then render_3d_wall("3L") end
-            if dungeon[player.y-3][player.x] == 1 then render_3d_wall("3C") end	
             if dungeon[player.y-3][player.x+1] == 1 then render_3d_wall("3R") end
+            if dungeon[player.y-3][player.x] == 1 then render_3d_wall("3C") end	
         end
         
         if (player.y - 2) >= 1 then
             if dungeon[player.y-2][player.x-1] == 1 then render_3d_wall("2L") end
-            if dungeon[player.y-2][player.x] == 1 then render_3d_wall("2C") end
             if dungeon[player.y-2][player.x+1] == 1 then render_3d_wall("2R") end
+            if dungeon[player.y-2][player.x] == 1 then render_3d_wall("2C") end
         end
         
         if dungeon[player.y-1][player.x-1] == 1 then render_3d_wall("1L") end
-        if dungeon[player.y-1][player.x] == 1 then	render_3d_wall("1C") end
         if dungeon[player.y-1][player.x+1] == 1 then render_3d_wall("1R") end
+        if dungeon[player.y-1][player.x] == 1 then	render_3d_wall("1C") end
         
         if dungeon[player.y][player.x-1] == 1 then render_3d_wall("0L") end
         if dungeon[player.y][player.x+1] == 1 then render_3d_wall("0R") end
     elseif (player.d == 1) then
         if dungeon[player.y-1][player.x+3] == 1 then render_3d_wall("3L") end
-        if dungeon[player.y][player.x+3] == 1 then render_3d_wall("3C") end	
         if dungeon[player.y+1][player.x+3] == 1 then render_3d_wall("3R") end
+        if dungeon[player.y][player.x+3] == 1 then render_3d_wall("3C") end	
         
         if dungeon[player.y-1][player.x+2] == 1 then render_3d_wall("2L") end
-        if dungeon[player.y][player.x+2] == 1 then render_3d_wall("2C") end
         if dungeon[player.y+1][player.x+2] == 1 then render_3d_wall("2R") end
+        if dungeon[player.y][player.x+2] == 1 then render_3d_wall("2C") end
 
         if dungeon[player.y-1][player.x+1] == 1 then render_3d_wall("1L") end
-        if dungeon[player.y][player.x+1] == 1 then	render_3d_wall("1C") end
         if dungeon[player.y+1][player.x+1] == 1 then render_3d_wall("1R") end
+        if dungeon[player.y][player.x+1] == 1 then	render_3d_wall("1C") end
         
         if dungeon[player.y-1][player.x] == 1 then render_3d_wall("0L") end
         if dungeon[player.y+1][player.x] == 1 then render_3d_wall("0R") end
     elseif (player.d == 2) then
         if (player.y + 3) <= 16 then
             if dungeon[player.y+3][player.x+1] == 1 then render_3d_wall("3L") end
-            if dungeon[player.y+3][player.x] == 1 then render_3d_wall("3C") end	
             if dungeon[player.y+3][player.x-1] == 1 then render_3d_wall("3R") end
+            if dungeon[player.y+3][player.x] == 1 then render_3d_wall("3C") end	
         end
         
         if (player.y + 2) <= 16 then
             if dungeon[player.y+2][player.x+1] == 1 then render_3d_wall("2L") end
-            if dungeon[player.y+2][player.x] == 1 then render_3d_wall("2C") end
             if dungeon[player.y+2][player.x-1] == 1 then render_3d_wall("2R") end
+            if dungeon[player.y+2][player.x] == 1 then render_3d_wall("2C") end
         end
         
         if dungeon[player.y+1][player.x+1] == 1 then render_3d_wall("1L") end
-        if dungeon[player.y+1][player.x] == 1 then	render_3d_wall("1C") end
         if dungeon[player.y+1][player.x-1] == 1 then render_3d_wall("1R") end
+        if dungeon[player.y+1][player.x] == 1 then	render_3d_wall("1C") end
         
         if dungeon[player.y][player.x+1] == 1 then render_3d_wall("0L") end
         if dungeon[player.y][player.x-1] == 1 then render_3d_wall("0R") end
     elseif (player.d == 3) then
         if dungeon[player.y+1][player.x-3] == 1 then render_3d_wall("3L") end
-        if dungeon[player.y][player.x-3] == 1 then render_3d_wall("3C") end	
         if dungeon[player.y-1][player.x-3] == 1 then render_3d_wall("3R") end
+        if dungeon[player.y][player.x-3] == 1 then render_3d_wall("3C") end	
         
         if dungeon[player.y+1][player.x-2] == 1 then render_3d_wall("2L") end
-        if dungeon[player.y][player.x-2] == 1 then render_3d_wall("2C") end
         if dungeon[player.y-1][player.x-2] == 1 then render_3d_wall("2R") end
+        if dungeon[player.y][player.x-2] == 1 then render_3d_wall("2C") end
 
         if dungeon[player.y+1][player.x-1] == 1 then render_3d_wall("1L") end
-        if dungeon[player.y][player.x-1] == 1 then	render_3d_wall("1C") end
         if dungeon[player.y-1][player.x-1] == 1 then render_3d_wall("1R") end
+        if dungeon[player.y][player.x-1] == 1 then	render_3d_wall("1C") end
         
         if dungeon[player.y+1][player.x] == 1 then render_3d_wall("0L") end
         if dungeon[player.y-1][player.x] == 1 then render_3d_wall("0R") end
