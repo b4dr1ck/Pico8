@@ -23,6 +23,16 @@ spawn_freq2=500
 counter=1
 counter2=1
 
+-- check if spr leaves area
+function leave_area(x,y)
+	if x > 150 or y > 150 or x < -30 or y < -30 
+	then
+		return true
+	end
+
+	return false
+end
+
 -- sprite animations
 function animate(current_frame,frame_start,frame_end,delay,stop)
  if stop then
@@ -56,9 +66,9 @@ end
 
 
 -- init ammo
-ammo={}
+bullets={}
 
-function new_ammo(x,y) 
+function bullet(x,y) 
 	a={}
 	a.x = x
 	a.y = y
@@ -94,10 +104,27 @@ function enemy(x,y,a,spd,img)
  return e
 end
 
+-- init particles
+particles={}
+
+function particle(x,y,a,spd,col,s)
+	p={}
+	p.x = x
+	p.y = y
+	p.a = a
+	p.spd = spd
+	p.col = col
+	p.s = s
+	
+	return p
+end
+
 function _update()
 	counter+=1
+	counter2+=1
 	
 	if not player.dead then
+	
 	 --control 4-directions
 		if btn(⬅️) then	player.x-=player.spd	end
 		if btn(➡️) then player.x+=player.spd end
@@ -147,11 +174,8 @@ function _update()
 				proj.y -= proj.spd
 			end
 			
-		-- projectilesmy leaves level
-		if proj.x > 150 or 
-					proj.y > 150 or
-					proj.x < -30 or
-					proj.y < -30 
+		-- projectiles leaves level
+		if leave_area(proj.x,proj.y)
 		then
 			del(projectiles,proj)
 		end
@@ -159,16 +183,23 @@ function _update()
 			-- projectile hits enemy
 			for enemy in all(enemies) do
 				if bb_collision(proj,enemy) then
+					-- particles for explosion-fx
+				
+				for i=0,10 do
+					add(particles,particle(enemy.x,enemy.y,rnd(1),3,8,flr(rnd(3))))
+				end			
+					
+					-- del enemy
 					del(enemies,enemy)
-					add(ammo,new_ammo(enemy.x,enemy.y))
+					add(bullets,bullet(enemy.x,enemy.y))				
 				end
 			end
 		end
 		
-  --player get ammo
-  for a in all(ammo) do
-   if bb_collision(a,player) do
-   	del(ammo,a)
+  --player gets ammo
+  for b in all(bullets) do
+   if bb_collision(b,player) do
+   	del(bullets,b)
    	player.ammo += 1
    end
   end
@@ -194,10 +225,9 @@ function _update()
 	 	sfx(0)
 		end
 		
-		
 		-- spawn ammo
 		if counter2 == spawn_freq2 then
-			add(ammo,new_ammo(flr(rnd(128)),flr(rnd(128))))
+			add(bullets,bullet(flr(rnd(128)),flr(rnd(128))))
 			counter2 = 0
 		end
 		
@@ -205,7 +235,7 @@ function _update()
 		if counter == spawn_freq then
 		 sfx(2)
 		 
-		 spawn_freq=flr(rnd(100)) + 50
+		 spawn_freq=flr(rnd(60)) + 10
 		 randspawn=flr(rnd(4))
 		 randimg=flr(rnd(3)) + 9
 		 
@@ -223,6 +253,7 @@ function _update()
 		end
 
 	else
+	
 	 -- player dead
 		player.image=animate(player.image,4,8,5,true)
 		
@@ -234,10 +265,25 @@ function _update()
    player.y = 64
    player.ammo = 1
    enemies={}
+   particles={}
+   bullets={}
    counter=1
 	 end
 	end
 		
+	-- particles control
+	for part in all(particles) do
+		part.x += cos(part.a)  * part.spd	
+ 	part.y += sin(part.a)  * part.spd	
+ 	
+		-- particles leaves level
+		if leave_area(part.x,part.y)
+		then
+			del(particles,part)
+		end
+		
+	end
+			
 	-- enemy control
 	for enemy in all(enemies) do
 	 if not player.dead then
@@ -247,10 +293,7 @@ function _update()
 		enemy.y += sin(enemy.a)  * enemy.spd
 		
 		-- enemy leaves level
-		if enemy.x > 150 or 
-					enemy.y > 150 or
-					enemy.x < -30 or
-					enemy.y < -30 
+		if leave_area(enemy.x,enemy.y)
 		then
 			del(enemies,enemy)
 		end
@@ -306,22 +349,27 @@ function _draw()
 		end
 	end
 	
+	-- particles
+	for part in all(particles) do
+		circfill(part.x,part.y,part.s,part.col)
+	end
+	
 	-- player projectiles
 	for proj in all(projectiles) do
 		circfill(proj.x,proj.y,1,10)
 	end
 	
 	-- ammo
-	for a in all(ammo) do
-		circfill(a.x,a.y,1,9)
-		circ(a.x,a.y,2,7)
+	for b in all(bullets) do
+		circfill(b.x,b.y,1,9)
+		circ(b.x,b.y,2,7)
 	end
 	
 	-- hud
-	print("e"..#enemies,0,0,7)
-	print("d"..deadcounter,16,0,8)
-	print("a"..player.ammo,32,0,10)
-		
+	print("🐱"..#enemies,0,0,7)
+	print("♥"..deadcounter,16,0,8)
+	print("●"..player.ammo,32,0,10)
+	
 	-- game over hud
 	if player.dead then
 		print("game over, loser",32,57,1)
