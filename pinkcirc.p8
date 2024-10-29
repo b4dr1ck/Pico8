@@ -9,15 +9,19 @@ player={
 	x=64,
 	y=64,
 	w=7,
+	dir=2,
 	spd=2,
 	flip_h=true,
 	image=3,
-	dead=false
+	dead=false,
+	ammo=1
 }
 
 deadcounter=0
 spawn_freq=100
+spawn_freq2=500
 counter=1
+counter2=1
 
 -- sprite animations
 function animate(current_frame,frame_start,frame_end,delay,stop)
@@ -50,6 +54,32 @@ function bb_collision(obj1, obj2)
  return false
 end
 
+
+-- init ammo
+ammo={}
+
+function new_ammo(x,y) 
+	a={}
+	a.x = x
+	a.y = y
+	
+	return a
+	
+end
+
+-- init projectiles
+projectiles={}
+
+function projectile(x,y,spd,dir)
+	p={}
+	p.x = x
+	p.y = y
+	p.spd = spd
+	p.dir = dir
+	
+	return p
+end
+
 -- init enemies
 enemies={}
 
@@ -77,16 +107,71 @@ function _update()
 	 -- sprite directions
 	 if btn(⬅️) then 
 	 	player.flip_h = false
+	 	player.dir=0
 	 	player.image=1 
 	 end
 	 
 	 if btn(➡️) then 
 	 	player.flip_h = true 
 	 	player.image=1
+	 	player.dir=1
 	 end
 	 
-	 if btn(⬆️) then player.image=2 end
-	 if btn(⬇️) then player.image=3 end
+	 if btn(⬆️) then 
+	 	player.image=2 
+	 	player.dir=3
+	 end
+	 if btn(⬇️) then 
+	 	player.image=3 
+	 	player.dir=2
+	 end
+	 
+	 -- shooting
+	 if btnp(❎) then
+	 	if player.ammo > 0 then
+				player.ammo-=1
+				add(projectiles,projectile(player.x+4,player.y+2,3,player.dir))
+				sfx(3)
+	 	end
+	 end
+	 
+	 -- projectile movement
+		for proj in all(projectiles) do
+			if proj.dir == 0 then
+				proj.x -= proj.spd
+			elseif proj.dir == 1 then
+				proj.x += proj.spd
+			elseif proj.dir == 2 then
+				proj.y += proj.spd
+			elseif proj.dir == 3 then
+				proj.y -= proj.spd
+			end
+			
+		-- projectilesmy leaves level
+		if proj.x > 150 or 
+					proj.y > 150 or
+					proj.x < -30 or
+					proj.y < -30 
+		then
+			del(projectiles,proj)
+		end
+			
+			-- projectile hits enemy
+			for enemy in all(enemies) do
+				if bb_collision(proj,enemy) then
+					del(enemies,enemy)
+					add(ammo,new_ammo(enemy.x,enemy.y))
+				end
+			end
+		end
+		
+  --player get ammo
+  for a in all(ammo) do
+   if bb_collision(a,player) do
+   	del(ammo,a)
+   	player.ammo += 1
+   end
+  end
 	 
 		--out of the screen
 		if player.x > 128 + player.w then 
@@ -107,6 +192,13 @@ function _update()
 		if player.y < -player.w then 
 		 player.y = 128 + player.w 
 	 	sfx(0)
+		end
+		
+		
+		-- spawn ammo
+		if counter2 == spawn_freq2 then
+			add(ammo,new_ammo(flr(rnd(128)),flr(rnd(128))))
+			counter2 = 0
 		end
 		
 		-- spawn enemy
@@ -136,8 +228,11 @@ function _update()
 		
 	 --restart on game_over
 	 if btnp(❎) then
-   player.image=4
+   player.image=3
    player.dead = false
+   player.x = 64
+   player.y = 64
+   player.ammo = 1
    enemies={}
    counter=1
 	 end
@@ -152,7 +247,11 @@ function _update()
 		enemy.y += sin(enemy.a)  * enemy.spd
 		
 		-- enemy leaves level
-		if enemy.x > 150 then
+		if enemy.x > 150 or 
+					enemy.y > 150 or
+					enemy.x < -30 or
+					enemy.y < -30 
+		then
 			del(enemies,enemy)
 		end
 		
@@ -188,13 +287,7 @@ end
 function _draw()
 	cls(5)
 	map(0,0,0,0,16,16)
-	
-	if player.dead then
-		print("game over, loser",32,57,1)
-		print("game over, loser",32,56,8)
-		print("press ❎ to restart",25,64,7)
-	end
-		
+			
 	-- player draw
 	ovalfill(player.x+7,player.y+8,player.x,player.y+6,1)	
  spr(player.image,player.x,player.y,1,1,player.flip_h)
@@ -213,11 +306,31 @@ function _draw()
 		end
 	end
 	
+	-- player projectiles
+	for proj in all(projectiles) do
+		circfill(proj.x,proj.y,1,10)
+	end
+	
+	-- ammo
+	for a in all(ammo) do
+		circfill(a.x,a.y,1,9)
+		circ(a.x,a.y,2,7)
+	end
+	
 	-- hud
-	print(#enemies,0,0,7)
-	print(deadcounter,16,0,8)
+	print("e"..#enemies,0,0,7)
+	print("d"..deadcounter,16,0,8)
+	print("a"..player.ammo,32,0,10)
+		
+	-- game over hud
+	if player.dead then
+		print("game over, loser",32,57,1)
+		print("game over, loser",32,56,8)
+		print("press ❎ to restart",25,64,7)
+	end
 	
 end
+
 
 
 
@@ -392,7 +505,7 @@ __sfx__
 000100001f0501d0501c0501a0501905018050180501605016050160501505015050160501605016050160501705018050190501a0501c0501e0501e0502105022050230502505027050280502b0502e05032050
 000200002425024250242502425024250182501825018250182501825018250182500c2500c2500c2500c2500c2500c2500c25002250022500225002250022500225002250022500225002250022500225002250
 000100001e1501f15020150201502115022150221502315024150251502615026150271502815029150291502a1502b1502d1502e1503015031150321503415037150381503a1503b1503e1503f1503f1503f150
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00010000124501245012450124501245012450134501345013450144501445015450154501645016450164501745018450194501a4501b4501c4501d4501f45020450214502345025450274502a4502d45031450
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
