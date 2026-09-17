@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 29
+version 43
 __lua__
 --questions 
 
@@ -7,6 +7,7 @@ data="\nwie hoch ist der mt. everest?;6058 m,7895 m,8848 m,9010 m;3:\
 wie viele einwohner hat \noesterreich?;6 mio,8 mio,9 mio,12 mio;3:\
 wie lange ist die donau?;1253 km,2850 km,3593 km,4456 km;2:\
 wann war der 2. weltkrieg?;1914-18,1925-30,1939-45,1955-62;3:\
+5 + 5 * (5 - 5) = ?;45,25,5,0;3:\
 wie tief ist der marianengraben?;8 km,11 km,15 km,18 km;2"
 
 

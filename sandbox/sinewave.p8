@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 18
+version 43
 __lua__
 function _init()
  cls()
@@ -20,7 +20,9 @@ function _update60()
  	x = 0 
  	--y = flr(rnd(80)) + 20
  	col = flr(rnd(15)) + 1
- 	amp = rnd(3)+.05
+ 	amp = rnd(6)+.05
+ 	y=flr(rnd(64)) + 64
+ 	wpc=1/flr(rnd(32)) + 8
  end
 end
 

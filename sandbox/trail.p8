@@ -1,9 +1,11 @@
 pico-8 cartridge // http://www.pico-8.com
-version 16
+version 43
 __lua__
 
 function _init()
     cls()
+    poke(0x5f2d,0x1)
+    
     x=64
     y=64
     col=8
@@ -20,7 +22,7 @@ function _init()
     end
 end
 
-function _update()
+function _update60()
     counter+=1
     if counter == 60 then
         add(drains,create_drain(x,y))
@@ -32,7 +34,7 @@ function _update()
         drains[i].y +=0.25
     end
 
-    if btn(0) then
+    --[[if btn(0) then
         if x > 1 then
             --col=flr(rnd(16))
             x-=1
@@ -54,8 +56,10 @@ function _update()
             --col=flr(rnd(16))
             y+=1
         end
-    end
-
+    end]]
+    
+    x=stat(32)
+    y=stat(33)
 end
 
 function _draw()
