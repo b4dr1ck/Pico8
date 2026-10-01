@@ -29,9 +29,9 @@ function _draw()
 	--  a bitfield value referring to sprite flags to draw only the sprites with those flags
  
  
- -- draw vertically
- for i=1,8 do
-  tline(i,1,i,8,0,(i-1)/8)
+ -- draw vertically 
+	for i=1,8 do
+		tline(i,1,i,9,(i-1)/8,0,0,1/8)
  end
  
  -- draw horizontally
@@ -51,14 +51,14 @@ function _draw()
   tline(0,i+64,i+32,i+64,0,(i-1)/32,1/32,0)
  end
 	  
- -- draw vertically down
+ -- draw diagonally down
 	pal(8,12)
 	for i=1,8 do
 		tline(17,i,25,i-1+8,0,(i-1)/8)
 	end
 	pal()
 	
-	-- draw vertically up
+	-- draw diagonally up
 	pal(8,3)
 	for i=1,8 do
 		tline(25,i-1+8,33,i,0,(i-1)/8)
