@@ -14,16 +14,16 @@ function _init()
  leveldesign=[[
 11111111
 11011011
-11000001
-10001011
-10001011
-10001011
-10001011
-10001011
+10000001
+11011011
+11001011
+10011011
+11001011
+11011011
 11111111
 ]]
-
- mapdata=create_level_map(leveldesign)
+	mapdata=create_level_map(leveldesign)
+	mapdata[5][3]["floor"] = 5
 	player={
 		x=3,
 		y=7,
@@ -42,16 +42,48 @@ end
 function _update60()
  mousex=stat(32)
  mousey=stat(33)
+ 
+ -- player movement
+ if btnp(➡️) then
+  player.dir += 1
+  if player.dir > 4 then
+  	player.dir = 1
+  end
+ end
+ if btnp(⬅️) then
+  player.dir -= 1
+  if player.dir < 1 then
+  	player.dir = 4
+  end
+ end
+ 
+ if btnp(⬆️) then
+  local cx=player.x+vectors[player.dir].c[1] * 1
+  local cy=player.y+vectors[player.dir].c[2] * 1
+ 	if tonum(mapdata[cy][cx].tile) == 0 then
+ 		player.x=cx
+ 		player.y=cy		
+ 	end
+	end
+	
+ if btnp(⬇️) then
+  local cx=player.x-vectors[player.dir].c[1] * 1
+  local cy=player.y-vectors[player.dir].c[2] * 1
+ 	if tonum(mapdata[cy][cx].tile) == 0 then
+ 		player.x=cx
+ 		player.y=cy		
+ 	end
+	end
 end
 
 function _draw()
 	cls()
 	
 	-- render floor
-	rectfill(0,127,127,103,6)
-	rectfill(0,103,127,92,13)
-	rectfill(0,92,127,86,5)
-	rectfill(0,86,127,82,1)
+	rectfill(0,127,127,113,6)
+	rectfill(0,113,127,100,13)
+	rectfill(0,100,127,95,5)
+	rectfill(0,95,127,90,1)
 	
 	-- render 3d view
 	for dist=3,0,-1 do
@@ -62,22 +94,25 @@ function _draw()
   local rx=cx + vectors[player.dir].r[1]
   local ry=cy + vectors[player.dir].r[2]
   
+  printh(#mapdata)
   -- check bounds and render walls
-  if cx >= 0 and 
-  			cx < #mapdata[1] and
-  			cy >= 0 and
-  			cy < #mapdata
+  if cx >= 1 and 
+  			cx <= #mapdata[1] and
+  			cy >= 1 and
+  			cy <= #mapdata
   then
   	-- left wall
-  	if lx >= 0 and
-  	   lx < #mapdata[1] and
-  	   ly >= 0 and
-  	   ly <  #mapdata
+  	if lx >= 1 and
+  	   lx <= #mapdata[1] and
+  	   ly >= 1 and
+  	   ly <=  #mapdata
   	then
   	 -- floor object
-	  	floor(dist,1,5)
-	  	
-  	 if tonum(mapdata[ly][lx]) > 0 then
+  	 if tonum(mapdata[ly][lx].floor) > 0 then
+	 	  	floor(dist,1,tonum(mapdata[ly][lx].floor))
+  	 end
+
+  	 if tonum(mapdata[ly][lx].tile) > 0 then
   	  if dist > 0 then
 	  	  frontwall(dist-1,1,dist*2,0)
   	  end
@@ -86,15 +121,17 @@ function _draw()
   	end
   	
   	-- right wall
-  	if rx >= 0 and
-  	   rx < #mapdata[1] and
-  	   ry >= 0 and
-  	   ry <  #mapdata
+  	if rx >= 1 and
+  	   rx <= #mapdata[1] and
+  	   ry >= 1 and
+  	   ry <=  #mapdata
   	then
   	 -- floor object
- 	 	floor(dist,-1,5)
+  	 if tonum(mapdata[ry][rx].floor) > 0 then
+	 	  	floor(dist,-1,tonum(mapdata[ry][rx].floor))
+  	 end
  	 	
-  	 if tonum(mapdata[ry][rx]) > 0 then
+  	 if tonum(mapdata[ry][rx].tile) > 0 then
   	  if dist > 0 then
 	  	  frontwall(dist - 1,-1,dist*2,0)
   	  end
@@ -104,9 +141,11 @@ function _draw()
   	
   	-- center wall
  	 -- floor object
-	 	floor(dist,0,5)
+  	 if tonum(mapdata[cy][cx].floor) > 0 then
+	 	  	floor(dist,0,tonum(mapdata[cy][cx].floor))
+  	 end
 	 	
-  	if tonum(mapdata[cy][cx]) > 0 then
+  	if tonum(mapdata[cy][cx].tile) > 0 then
 			 frontwall(dist - 1,0,dist*2,0)
 			end	 				
   end
@@ -116,11 +155,11 @@ function _draw()
 	render_map(mapdata)
 	
 	-- hud
---	print("x:"..player.x.." y:"..player.y.." dir:"..player.dir,16,0,8)	
+ print("x:"..player.x.." y:"..player.y.." dir:"..player.dir,16,0,8)	
 	
 	-- mouse
-	circfill(mousex,mousey,1,8)
-	print("x: "..mousex.." y: " ..mousey)
+	--circfill(mousex,mousey,1,8)
+	--print("x: "..mousex.." y: " ..mousey)
 end
 
 -->8
@@ -225,7 +264,7 @@ function floor(zindex,dir,sprite)
 	local scale=(h0/z0+h0/z1)/2
 	local depth=(z0+z1)/8
 	local size=max(1,flr(8/depth))
-	local y=cy+scale
+	local y=(cy-2)+scale
 	local x=cx
 	
 	if dir == 1 then
@@ -234,7 +273,7 @@ function floor(zindex,dir,sprite)
 		x=127-zindex*8
 	end
 
-	circfill(x,y,1,10)
+	--circfill(x,y,1,10)
 	local sx=(sprite%16)*8
 	local sy=flr(sprite/16)*8
 	sspr(sx,sy,8,8,x-size/2,y-size/2,size,size)
@@ -249,6 +288,9 @@ function create_level_map(data)
  for y=1,#rows do
   local cols=split(rows[y],"",false)
 		if #cols > 0 then
+		 for c=1,#cols do
+		 	cols[c] = {floor=0,tile=cols[c]}
+		 end
 			add(dataarray,cols)
 		end
  end
@@ -265,7 +307,7 @@ function render_map(data)
   
  for y=1,#data do
   for x=1,#data[y] do
-   if data[y][x] == "1" then
+   if data[y][x].tile == "1" then
     local x = x - 1
     local y = y - 1
 	   rectfill(x*size,y*size,x*size+1,y*size+1,colm)
