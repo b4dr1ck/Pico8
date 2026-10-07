@@ -3,6 +3,8 @@ version 43
 __lua__
 
 function _init()
+	poke(0x5f2d,0x1) -- mouse
+
  cy=64 						-- horizon
  h0,h1=64,18 -- half height: near/far edge
  mx,my=0,0			-- top-left map cell (wall texture)
@@ -12,12 +14,12 @@ function _init()
  leveldesign=[[
 11111111
 11011011
-10000001
+11000001
+10011011
 11011011
+11001011
 10011011
 11001011
-11011011
-11011011
 11111111
 ]]
 
@@ -37,12 +39,21 @@ function _init()
 	
 end
 
-function _update()
+function _update60()
+ mousex=stat(32)
+ mousey=stat(33)
 end
 
 function _draw()
 	cls()
 	
+	-- render floor
+	rectfill(0,127,127,103,6)
+	rectfill(0,103,127,92,13)
+	rectfill(0,92,127,86,5)
+	rectfill(0,86,127,82,1)
+	
+	-- render 3d view
 	for dist=3,0,-1 do
   local cx=player.x+vectors[player.dir].c[1] * dist
   local cy=player.y+vectors[player.dir].c[2] * dist
@@ -63,11 +74,14 @@ function _draw()
   	   ly >= 0 and
   	   ly <  #mapdata
   	then
+  	 -- floor object
+	  	floor(dist,1)
+	  	
   	 if tonum(mapdata[ly][lx]) > 0 then
   	  if dist > 0 then
-	  	  frontwall(dist - 1,1,2,0)
+	  	  frontwall(dist-1,1,dist*2,0)
   	  end
-  	 	sidewall(dist,1,2,0)	
+  	 	sidewall(dist,1,dist*2,0)	
   	 end
   	end
   	
@@ -77,50 +91,36 @@ function _draw()
   	   ry >= 0 and
   	   ry <  #mapdata
   	then
+  	 -- floor object
+ 	 	floor(dist,-1)
+ 	 	
   	 if tonum(mapdata[ry][rx]) > 0 then
   	  if dist > 0 then
-	  	  frontwall(dist - 1,-1,2,0)
+	  	  frontwall(dist - 1,-1,dist*2,0)
   	  end
-  	 	sidewall(dist,-1,2,0)	
+  	 	sidewall(dist,-1,dist*2,0)	
   	 end
   	end
   	
   	-- center wall
+ 	 -- floor object
+	 	floor(dist,0)
+	 	
   	if tonum(mapdata[cy][cx]) > 0 then
-			 frontwall(dist - 1,0,2,0)
-			end	 	
-			
+			 frontwall(dist - 1,0,dist*2,0)
+			end	 				
   end
  end
-
-		-- z-index 3
---	sidewall(3,1,6,0)
---	sidewall(3,-1,6,0)
- --frontwall(3,0,2,0)
-	--frontwall(3,-1,2,0)
- --frontwall(3,1,2,0)
-	
-		-- z-index 2
---	sidewall(2,1,4,0)
---	sidewall(2,-1,4,0)
- --frontwall(2,0,2,0)
-	--frontwall(2,-1,2,0)
- --frontwall(2,1,2,0)
-	
-	-- z-index 1
---	sidewall(1,1,2,0)
---	sidewall(1,-1,2,0)
- --frontwall(1,0,2,0)
-	--frontwall(1,-1,2,0)
- --frontwall(1,1,2,0)
-	
-	-- z-index 0
---	sidewall(0,1,0,0)
---	sidewall(0,-1,0,0)
-
+ 
+ -- automap
 	render_map(mapdata)
 	
-	print("x:"..player.x.." y:"..player.y.." dir:"..player.dir,16,0,7)	
+	-- hud
+--	print("x:"..player.x.." y:"..player.y.." dir:"..player.dir,16,0,8)	
+	
+	-- mouse
+	circfill(mousex,mousey,1,8)
+	print("x: "..mousex.." y: " ..mousey)
 end
 
 -->8
@@ -137,12 +137,12 @@ function sidewall(zindex,dir,texture_x,texture_y)
 	local z1=1+(zfar-1)*(zindex+1)/distance
 	local cx=63.5
 	local x0,x1
-	
-	-- right
+		
+	-- left
 	if dir==1 then
 		x0=flr(cx-h0/z0)
 		x1=flr(cx-h0/z1)
- -- left
+ --right
 	else
 		x0=127-flr(cx-h0/z0)
 		x1=127-flr(cx-h0/z1)
@@ -157,6 +157,13 @@ function sidewall(zindex,dir,texture_x,texture_y)
 			tline(x,cy-h,x,cy+h,u,texture_y,0,vh/(2*h))
 		end
 	end
+	
+	-- object
+	local x=ceil(x0+(x1-x0)/2)		
+	local y=127-x
+	circfill(x,y,1,8)	  
+	circfill(x,64,1,8)	  
+	circfill(x,x,1,8)	  
 end
 
 -- frontwall(zindex,dir,texture_x,texture_y)
@@ -173,12 +180,12 @@ function frontwall(zindex,dir,texture_x,texture_y)
 
 	-- left
 	if dir==1 then
-		x0=0
+		x0=-32+zindex*8
 		x1=edge
 	-- right
 	elseif dir == -1 then
 		x0=127-edge
-		x1=127
+		x1=127+(32-zindex*8)
 	-- center
 	elseif dir == 0 then
 		x0=flr(cx-h)
@@ -189,8 +196,47 @@ function frontwall(zindex,dir,texture_x,texture_y)
 		local u=texture_x+uw*t
 		tline(x,cy-h,x,cy+h,u,texture_y,0,vh/(2*h))
 	end
+	
+	-- object
+	 if dir == 1 then
+  	circfill(zindex*8,cy+h,1,9)
+  	circfill(zindex*8,64,1,9)
+  	circfill(zindex*8,cy-h,1,9)
+		elseif dir == -1 then
+  	circfill(127-zindex*8,cy+h,1,9)
+  	circfill(127-zindex*8,64,1,9)
+  	circfill(127-zindex*8,cy-h,1,9)
+		elseif dir == 0 then
+  	circfill(64,cy+h,1,9)
+  	circfill(64,64,1,9)
+  	circfill(64,cy-h,1,9)
+		end
 end
 
+--	floor(zindex,dir)
+--  * z-index: how far is the wall in the distance
+--  * dir: left or right or center (1,-1,0)
+function floor(zindex,dir)
+	local zfar=h0/h1
+	local cx=64
+	local z0=1+(zfar-1)*zindex/distance
+	local z1=1+(zfar-1)*(zindex+1)/distance
+	local scale=(h0/z0+h0/z1)/2
+	local y=cy+scale
+	local x=cx
+	
+	if dir == 0 then
+		circfill(64,y,1,10)
+	elseif dir == 1 then
+		circfill(zindex*8,y,1,10)
+	elseif dir == -1 then
+		x=cx+scale
+		circfill(127-zindex*8,y,1,10)
+	end	
+end
+
+-- create_level_map(data) 
+--		* data: mapdata as a string bitfield with newlines
 function create_level_map(data) 
  local dataarray={}
  local rows=split(data,"\n",false)
@@ -205,10 +251,12 @@ function create_level_map(data)
  return dataarray
 end
 
+-- render_map(data)
+-- 	* data: 2d array of the mapdata
 function render_map(data)
  local size=2
- local colm=1
- local colp=10
+ local colm=7
+ local colp=8
   
  for y=1,#data do
   for x=1,#data[y] do
