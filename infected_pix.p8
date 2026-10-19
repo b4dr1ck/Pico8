@@ -25,14 +25,29 @@ function _init()
 	}
  mapbounds_x=128
  mapbounds_y=128
+ game_state="mainmenu"
  game_timer=0
+ 
  killcounter=0
+ killcounter_highscore=0
+ new_highscore=false
+ 
+ -- get data from storage
+ cartdata("infected_pixels")
+ saved_killcounter=dget(0)
+ if saved_killcounter > 0 then
+ 	killcounter_highscore=saved_killcounter
+ end
+ 	 
+ lightspot1=0
+ lightspot2=0
  player={
   deathtext=deathtextmap[randi(#deathtextmap)],
-  timer={invincible=60,spdboost=300},
+  timer={invincible=60,spdboost=300,slow=0,pill=600},
   hp=5,
   name="player",
   invincible=false,
+  pill=false,
   x=60,
   y=60,
   w=8,
@@ -55,6 +70,7 @@ function _init()
  projectiles={}
  rain={}
  zombies={}
+ vomit={}
  sprites={}
  blood={}
  runningblood={}
@@ -82,350 +98,435 @@ function _init()
  end
  
  add(sprites,player)
-
+ 
+ add(items,new_item(132,32,32))
+ 
 end
 
 function _update60()
-
  game_timer+=1
 
- -- update camera
- if player.invincible then
-  -- shake camera effect
-	 cam_x = mid(0, player.x - 64, mapbounds_x) + randi(5)-2
-	 cam_y = mid(0, player.y - 64, mapbounds_y) + randi(5)-2
- else
-	 cam_x = mid(0, player.x - 64, mapbounds_x) 
-	 cam_y = mid(0, player.y - 64, mapbounds_y)
-	end
-	
- -- enemy spawner
- if game_timer % spawntimer == 0 and
-    #zombies <= 50 and
-    player.state != "dead"    
- then
-
-  sfx(3)
-   
-  local spawnpoint = spawnpoints[randi(#spawnpoints)]  
-  
-  add(zombies,new_zombie(spawnpoint))
- 	add(sprites,zombies[#zombies])
- 	
- 	spawntimer=randi(100) + 200
- end
- 
- -- capture mouse input
- mousex=stat(32) + cam_x
- mousey=stat(33) + cam_y
- mouseb=stat(34)
- 
- local mouse_angle = atan2(mousex-player.x,mousey-player.y)
- local dx=0
- local dy=0
- 
- -- capture keyboard input
- if btn(⬅️) then dx=-1 end 
- if btn(➡️) then dx=1 end 
- if btn(⬆️) then dy=-1 end 
- if btn(⬇️) then dy=1 end 
- 
- -- players death
- if player.state == "dead" then
-  player.img = -1
-	 if game_timer % 60 == 0 then
-	  local x=randi(127)
-	  if #runningblood < 100 then
-		  add(runningblood,new_runningblood(x,0))
-	  end
-	 end
-	 
-	 for b in all(runningblood) do
-	  if b.length < 127 then
-		  b.length+=b.spd
-		 end
-	 end
-	 
-	else
-	
-	 -- speed boost
-	 if player.spd > 1 and
-	    player.timer.spdboost > 0  
+ if game_state == "game" then
+	 -- update camera
+	 if player.invincible and not player.pill then
+	  -- shake camera effect
+		 cam_x = mid(0, player.x - 64, mapbounds_x) + randi(5)-2
+		 cam_y = mid(0, player.y - 64, mapbounds_y) + randi(5)-2
+	 else
+		 cam_x = mid(0, player.x - 64, mapbounds_x) 
+		 cam_y = mid(0, player.y - 64, mapbounds_y)
+		end
+		
+	 -- enemy spawner
+	 if game_timer % spawntimer == 0 and
+	    #zombies <= 50 and
+	    player.state != "dead"    
 	 then
-	 	player.timer.spdboost-=1 
-	 end
-	 
-	 if player.timer.spdboost == 0 then
-	  player.spd=1
-	  player.timer.spdboost=300 
-	 end
-	 
-	 -- player movement
-	 local old_x=player.x
-	 player.x+=dx*player.spd
-	 
-	 if collide(player.x,player.y,2)
-	 then	    
-			player.x = old_x    
-	 end
-	 
-	 local old_y=player.y
-	 player.y+=dy*player.spd
-	 
-	 if collide(player.x,player.y,2)
-	 then
-			player.y = old_y    
-	 end
 	
-	 -- player gets hit by zombie
-	 for z in all(zombies) do
-	  if aabb(player,z,0) then
-	   if not player.invincible then
-	   	player.hp -= 1
-	   	sfx(2)
-					add(blood,create_blood(player.x,player.y))
-
-					if player.hp <= 0 then
-	 	  	particles = blood_explosion(player.x+4,player.y+4)
-	 	  	for i=1,5 do
-		 	  	add(blood,create_blood(player.x,player.y))
-		 	  end
-		 	  sfx(7)
-					 player.state = "dead"
-					end
-	   end
-				player.invincible=true
-	  end
-	 end
-	
-	 -- aim line (gun)
-		aimline.x1=player.x+4
-		aimline.y1=player.y+4
-		aimline.x2=player.x+4+cos(mouse_angle)*6
-		aimline.y2=player.y+4+sin(mouse_angle)*6
-	
-	 -- player animations
-	 if player.state != "dead" then
-		 if dx != 0 or dy != 0 then
-		  player.state="walk"
-		 else 
-		  if (mouseb == 1) then
-		  	player.state="shoot"
-		  else
-			 	player.state="idle"
-		 	end
-		 end
-		 
-		 if dx < 0 then
-				player.fliph=true
-			elseif dx > 0 then
-				player.fliph=false
-		 end
-		 
-		 player.img = animate(
-		 														game_timer,
-		 														player.img,
-		 														state_frames[player.state][1],
-		 														state_frames[player.state][2],
-		 														state_frames[player.state][3],
-		 														false)
-  end
-	end
-	 
- -- enemies
- for z in all(zombies) do
-  if z.state == "walk" then
-	  if z.hp <= 0 then
-	   sfx(5)
-	  	particles = blood_explosion(z.x+4,z.y+4)
-    
-    killcounter+=1
-    
-    -- drop items
-    local itemimg=({128,129,130,131})[randi(4)]
-    
-	  	if randi(z.dropchance) == z.dropchance then
-     add(items,new_item(itemimg,z.x,z.y))
-	  	end
-	  	
-	   del(zombies,z)
-	   del(sprites,z)
-	  end
-	 
-	  -- movement
-	  z.old_x = z.x
-	  z.old_y = z.y
+	  sfx(3)
+	   
+	  local spawnpoint = spawnpoints[randi(#spawnpoints)]  
 	  
-	  if player.state != "dead" then
-	   z.ang = atan2(player.x-z.x,player.y-z.y) 
-		  
-		  -- collision with player or obstacle
-		  z.x += cos(z.ang) * z.spd
-			 if aabb(z,player,2) or
-			    collide(z.x,z.y,2)
-			 then	    
-					z.x = z.old_x    
-			 end 
-			 
-			 z.y += sin(z.ang) * z.spd
-			 if aabb(z,player,2) or
-			    collide(z.x,z.y,2)
-			 then	    
-					z.y = z.old_y    
+	  add(zombies,new_zombie(spawnpoint))
+	 	add(sprites,zombies[#zombies])
+	 	
+	 	spawntimer=randi(100) + 250
+	 end
+	 
+	 -- capture mouse input
+	 mousex=stat(32) + cam_x
+	 mousey=stat(33) + cam_y
+	 mouseb=stat(34)
+	 
+	 local mouse_angle = atan2(mousex-player.x,mousey-player.y)
+	 local dx=0
+	 local dy=0
+	 
+	 -- capture keyboard input
+	 if btn(⬅️) then dx=-1 end 
+	 if btn(➡️) then dx=1 end 
+	 if btn(⬆️) then dy=-1 end 
+	 if btn(⬇️) then dy=1 end 
+	 
+	 if btnp(❎) and
+	    player.state == "dead"
+	 then 
+	 	_init()
+	 end
+	 
+	 -- players death
+	 if player.state == "dead" then
+	  player.img = -1
+		 if game_timer % 60 == 0 then
+		  local x=randi(127)
+		  if #runningblood < 100 then
+			  add(runningblood,new_runningblood(x,0))
+		  end
+		 end
+		 
+		 for b in all(runningblood) do
+		  if b.length < 127 then
+			  b.length+=b.spd
 			 end
 		 end
-		 
-			-- if enemy collides another enemy
-			for z2 in all(zombies) do
-				if aabb(z,z2,2) and
-					  z2 != z
-			 then
-					z.x = z.old_x
-					z.y = z.old_y
-				end
-			end
-		 
-		 -- animations
-	  if (player.x-z.x < 0) then
-	   z.fliph=true
-	  else
-	   z.fliph=false
-	  end
-	  
-	  z.img = animate(
-												game_timer,
-												z.img,
-												z.img_start,
-												z.img_end,
-												20,
-												false)
-  end
- end
- 
- -- create rain
- if game_timer % 10 == 0 then
-   local amount=randi(32)
-   
- 	 for x=0,amount do
-		 	add(rain,
-		 						new_rain(
-		 						 randi(128)+cam_x,
-		 						 randi(12),
-		 						 5
-		 						 )
-		 					)	
+		else
+		
+		 -- speed boost
+		 if player.spd > 1 and
+		    player.timer.spdboost > 0  
+		 then
+		 	player.timer.spdboost-=1 
 		 end
- end
- 
- -- create projectiles 
- if (mouseb == 1 and player.state != "dead") then
-  player.state="shoot"
-  aimline.visible=true
-  
-  if game_timer % player.launchfrq == 0 then
-   local spread_angle=0.04
-   
-   -- create one or multiple p
-   for p=1,player.projectiles do
-    local angle_offset=(p-(player.projectiles+1)/2)*spread_angle
-    add(projectiles,
-     new_projectile(
-      player.x+4,
-      player.y+4,
-      player.launchspd,
-      mouse_angle+angle_offset,
-      9)
-    )
-   end
-	 		sfx(0)
+		 
+		 if player.timer.spdboost == 0 then
+		  player.spd=1
+		  player.timer.spdboost=300 
+		 end
+		 
+		 -- slow debuff
+		 if player.timer.slow > 0 then
+		  player.timer.slow-=1
+		  player.spd = 0.25
+		 elseif player.timer.spdboost == 0 then
+		  player.spd = 1
+		 end
+	
+		 -- player movement
+		 local old_x=player.x
+		 player.x+=dx*player.spd
+		 
+		 if collide(player.x,player.y,2)
+		 then	    
+				player.x = old_x    
+		 end
+		 
+		 local old_y=player.y
+		 player.y+=dy*player.spd
+		 
+		 if collide(player.x,player.y,2)
+		 then
+				player.y = old_y    
+		 end
+		
+		 -- player gets hit by zombie
+		 for z in all(zombies) do
+		  if aabb(player,z,0) then
+		   if not player.invincible and
+		      not player.pill
+		   then
+		   	player.hp -= 1
+		   	sfx(2)
+						add(blood,new_blood(player.x,player.y))
+	     
+	     -- and dies...
+						if player.hp <= 0 then
+						 if killcounter > killcounter_highscore then
+						  killcounter_highscore=killcounter
+		      cartdata("infected_pixels")
+		      dset(0,killcounter_highscore)
+		      new_highscore=true
+						 end
+						
+		 	  	particles = blood_explosion(player.x+4,player.y+4)
+		 	  	for i=1,5 do
+			 	  	add(blood,new_blood(player.x,player.y))
+			 	  end
+			 	  sfx(7)
+						 player.state = "dead"
+						end
+		   end
+		   if not player.pill then
+						player.invincible=true
+					end
+		  end
+		 end
+		
+		 -- aim line (gun)
+			aimline.x1=player.x+4
+			aimline.y1=player.y+4
+			aimline.x2=player.x+4+cos(mouse_angle)*6
+			aimline.y2=player.y+4+sin(mouse_angle)*6
+		
+		 -- player animations
+		 if player.state != "dead" then
+			 if dx != 0 or dy != 0 then
+			  player.state="walk"
+			 else 
+			  if (mouseb == 1) then
+			  	player.state="shoot"
+			  else
+				 	player.state="idle"
+			 	end
+			 end
+			 
+			 if dx < 0 then
+					player.fliph=true
+				elseif dx > 0 then
+					player.fliph=false
+			 end
+			 
+			 player.img = animate(
+			 														game_timer,
+			 														player.img,
+			 														state_frames[player.state][1],
+			 														state_frames[player.state][2],
+			 														state_frames[player.state][3],
+			 														false)
+	  end
+		end
+		 
+		 
+	 -- enemies
+	 for z in all(zombies) do
+	  if z.state == "walk" then
+		  if z.hp <= 0 then
+		   sfx(5)
+		  	particles = blood_explosion(z.x+4,z.y+4)
+	    
+	    killcounter+=1
+	    
+	    -- drop items
+	    local itemimg=({128,129,130,131,132})[randi(4)]
+	    local dc=randi(z.dropchance)
+	    
+	    printh(dc)
+		  	if dc == z.dropchance then
+	     add(items,new_item(itemimg,z.x,z.y))
+		  	end
+		  	
+		   del(zombies,z)
+		   del(sprites,z)
+		  end
+		 
+		  -- special zombie behaivor
+		  
+		  -- * vomitter 
+		  if z.img_start == 32 then
+		   z.timer.vomit-=1
+		   
+			  if z.timer.vomit == 0 then
+			    add(vomit,{img=36,
+			    											x=z.x+4,
+			    											y=z.y+4,
+			    											w=8,h=8,
+			    											ttl=1200
+			    											})
+			    z.timer.vomit = 600
+			    sfx(8)
+			  end
+		  end
+		  
+		  -- * crawling
+		  if z.img_start == 37 then
+		   if game_timer % 20 == 0 then
+			   add(blood,new_blood(z.x,z.y))
+		   end
+		  end
+		 
+		  -- movement
+		  z.old_x = z.x
+		  z.old_y = z.y
+		  
+		  if player.state != "dead" then
+		   z.ang = atan2(player.x-z.x,player.y-z.y) 
+			  
+			  -- collision with player or obstacle
+			  z.x += cos(z.ang) * z.spd
+				 if aabb(z,player,2) or
+				    collide(z.x,z.y,2)
+				 then	    
+						z.x = z.old_x    
+				 end 
+				 
+				 z.y += sin(z.ang) * z.spd
+				 if aabb(z,player,2) or
+				    collide(z.x,z.y,2)
+				 then	    
+						z.y = z.old_y    
+				 end
+			 end
+			 
+				-- if enemy collides another enemy
+				for z2 in all(zombies) do
+					if aabb(z,z2,2) and
+						  z2 != z
+				 then
+						z.x = z.old_x
+						z.y = z.old_y
+					end
+				end
+			 
+			 -- animations
+		  if (player.x-z.x < 0) then
+		   z.fliph=true
+		  else
+		   z.fliph=false
+		  end
+		  
+		  z.img = animate(
+													game_timer,
+													z.img,
+													z.img_start,
+													z.img_end,
+													20,
+													false)
+	  end
+	 end
+	 
+	 -- create rain
+	 if game_timer % 10 == 0 then
+	   local amount=randi(32)
+	   
+	 	 for x=0,amount do
+			 	add(rain,
+			 						{
+			 						 x=randi(128)+cam_x,
+			 						 y=randi(12),
+			 						 spd=5
+			 						 }
+			 					)	
+			 end
+	 end
+	 
+	 -- create projectiles 
+	 if (mouseb == 1 and player.state != "dead") then
+	  player.state="shoot"
+	  aimline.visible=true
+	  
+	  if game_timer % player.launchfrq == 0 then
+	   local spread_angle=0.04
+	   
+	   -- create one or multiple p
+	   for p=1,player.projectiles do
+	    local angle_offset=(p-(player.projectiles+1)/2)*spread_angle
+	    add(projectiles,
+	     new_projectile(
+	      player.x+4,
+	      player.y+4,
+	      player.launchspd,
+	      mouse_angle+angle_offset,
+	      9)
+	    )
+	   end
+		 		sfx(0)
+		 	end
+		else
+	  aimline.visible=false
+	 end
+	
+	 -- vomit
+	 for v in all(vomit) do
+	 	v.ttl-=1
+	 	if v.ttl <= 0 do
+	 	 del(vomit,v)
 	 	end
-	else
-  aimline.visible=false
- end
-
- -- items
- for i in all(items) do
- 
-  -- collisions
-  if aabb(player,i,2) then
-   sfx(4)
-   
-   -- medipacks
-   if i.img == 128 then
-    player.hp=min(10,player.hp+1)
-   end
-   
-   -- energy drink
-   if i.img == 129 then
-    player.spd=min(2,player.spd+1)
-   end
-   
-   -- launchfrq down
-   if i.img == 130 then
-    player.launchfrq=max(5,player.launchfrq-5)
-   end
-   
-   -- projectiles up
-   if i.img == 131 then
-    player.projectiles=min(6,player.projectiles+1)
-   end
-   
-   del(items,i)
-  end
-  i.y = sine_wave(i.x,i.y,0.5,0.05)
-    						
- end
-
- -- update rain
- for r in all(rain) do
-  r.y+=r.spd
-  if leave_area(r.x,r.y,mapbounds_x,mapbounds_y)  
-  then 
-   del(rain,r)    
-  end
- end
-  
- -- update projectiles
- for p in all(projectiles) do
-  p.x += cos(p.ang) * p.spd
-  p.y += sin(p.ang) * p.spd
-  
-  if leave_area(p.x,p.y,mapbounds_x,mapbounds_y)  
-  then 
-   del(projectiles,p)    
-  end 
-  
-  -- projectile hits zombie
-  for z in all(zombies) do
-	  if aabb(p,z,0) then
-
-	  	z.state = "hit"	  
-	  	z.hp -= 1
-	  	
-	  	sfx(1)
-	  		
-	  	del(projectiles,p)
-	  	
-	  	particles = blood_explosion(z.x+4,z.y+4)
-    
-    for b=0,3 do
-		  	add(blood,create_blood(z.x,z.y))
+	 	
+	 	-- collision
+	 	if aabb(player,v,0) then
+	 		player.timer.slow=60
+	 	end
+	 end
+	
+	 -- items
+	 for i in all(items) do
+	 
+	  -- collisions
+	  if aabb(player,i,2) then
+	   sfx(4)
+	   
+	   -- medipacks
+	   if i.img == 128 then
+	    player.hp=min(10,player.hp+1)
+	   end
+	   
+	   -- energy drink
+	   if i.img == 129 then
+	    player.spd=min(2,player.spd+1)
+	   end
+	   
+	   -- launchfrq down
+	   if i.img == 130 then
+	    player.launchfrq=max(5,player.launchfrq-5)
+	   end
+	   
+	   -- projectiles up
+	   if i.img == 131 then
+	    player.projectiles=min(6,player.projectiles+1)
+	   end
+	   
+	   -- invincible
+	   if i.img == 132 then
+	   	player.pill = true
+	   	player.timer.pill=600
+	   	sfx(10)
+	   end
+	   
+	   del(items,i)
+	  end
+	  i.y = sine_wave(i.x,i.y,0.5,0.05)
+	    						
+	 end
+	
+	 -- update rain
+	 for r in all(rain) do
+	  r.y+=r.spd
+	  if leave_area(r.x,r.y,mapbounds_x,mapbounds_y)  
+	  then 
+	   del(rain,r)    
+	  end
+	 end
+	  
+	 -- update projectiles
+	 for p in all(projectiles) do
+	  p.x += cos(p.ang) * p.spd
+	  p.y += sin(p.ang) * p.spd
+	  
+	  if leave_area(p.x,p.y,mapbounds_x,mapbounds_y)  
+	  then 
+	   del(projectiles,p)    
+	  end 
+	  
+	  -- projectile hits zombie
+	  for z in all(zombies) do
+		  if aabb(p,z,0) then
+	
+		  	z.state = "hit"	  
+		  	z.hp -= 1
+		  	
+		  	sfx(1)
+		  		
+		  	del(projectiles,p)
+		  	
+		  	particles = blood_explosion(z.x+4,z.y+4)
+	    
+	    for b=0,3 do
+			  	add(blood,new_blood(z.x,z.y))
+			  end
 		  end
 	  end
-  end
- end
- 
- -- update particles
- for p in all(particles) do
-  p.yspd += min(3,p.grav)
-  p.x += p.xspd
-  p.y += p.yspd
-  
-		if leave_area(p.x,p.y,mapbounds_x,mapbounds_y)  then
-			del(particles,p)
-		end
- end
-  
+	 end
+	 
+	 -- update particles
+	 for p in all(particles) do
+	  p.yspd += min(3,p.grav)
+	  p.x += p.xspd
+	  p.y += p.yspd
+	  
+			if leave_area(p.x,p.y,mapbounds_x,mapbounds_y)  then
+				del(particles,p)
+			end
+	 end
+	
+	-- main menu 
+	elseif game_state == "mainmenu" then
+	 
+	 if btnp(❎) then
+	  game_state="game"
+	  sfx(9)
+	 end
+	 
+	end
+
  -- reset game-timer
  if game_timer > 1000 then
   game_timer=0
@@ -434,139 +535,347 @@ end
 
 --------------------------------------
 function _draw()
- cls(1)
-
- -- set camera
- camera(cam_x, cam_y)
+ cls(0)
  
- -- map
- map(0,0)
- 
- -- blood
- for b in all(blood) do
-  circfill(b.x,b.y,b.r,8)
-  b.ttl-=1
-  if b.ttl <= 0 then
-  	del(blood,b)
-  end
- end
- 
- -- items
- for i in all(items) do
-  spr(i.img,i.x,i.y)
- end
- 
- -- sprites
- isorty(sprites)
- for s in all(sprites) do
-  
-  -- handle zombies
-  if s.name == "zombie" then
-   -- recolor 
-   if s.col > 0 then
-	  	pal(7,s.col)
-	  end
-	  if s.col2 > 0 then
-		  pal(1,s.col2)
-		 end
-	  
-	  -- set color to white if hit
-	  if s.state == "hit" then
-	   s.timer.hit -= 1
-	   for c=1,16 do
-		  	pal(c,7)
-	  	end
-	  	
-		  -- reset zombie state
-			 if s.timer.hit == 0 then
-			  s.state = "walk"
-			  s.timer.hit = 15
-			 end
+ if game_state == "game" then
+	 -- set camera
+	 camera(cam_x, cam_y)
+	 
+	 -- map
+	 map(0,0)
+	 
+	 -- blood
+	 for b in all(blood) do
+	  circfill(b.x,b.y,b.r,8)
+	  b.ttl-=1
+	  if b.ttl <= 0 then
+	  	del(blood,b)
 	  end
 	 end
 	 
-	 -- handle player
-	 if s.name == "player" then
-	  if s.invincible then
-		  s.timer.invincible-=1
-	   for c=1,16 do
-		  	pal(c,7)
-	  	end
-	  		  	
-	  	if s.timer.invincible == 0 then
-	  		s.invincible = false
-	  		s.timer.invincible=60
-	  	end  	
+	 -- vomit
+	 for v in all(vomit) do
+	  spr(v.img, v.x, v.y)
+	 end
+	 
+	 -- items
+	 for i in all(items) do
+	  spr(i.img,i.x,i.y)
+	 end
+	 
+	 -- sprites
+	 isorty(sprites)
+	 for s in all(sprites) do
+	  
+	  -- handle zombies
+	  if s.name == "zombie" then
+	   -- recolor 
+	   if s.col > 0 then
+		  	pal(7,s.col)
+		  end
+		  if s.col2 > 0 then
+			  pal(1,s.col2)
+			 end
+		  
+		  -- set color to white if hit
+		  if s.state == "hit" then
+		   s.timer.hit -= 1
+		   for c=1,16 do
+			  	pal(c,7)
+		  	end
+		  	
+			  -- reset zombie state
+				 if s.timer.hit == 0 then
+				  s.state = "walk"
+				  s.timer.hit = 15
+				 end
+		  end
+		 end
+		 
+		 -- handle player
+		 if s.name == "player" then
+		 
+		  -- invincible on pill item
+		  if s.pill then
+		   s.timer.pill-=1
+		   
+		   if flr(time()*10) % 5 == 0 then
+			   for c=1,16 do
+				  	pal(c,10)
+			  	end
+			  else
+			   pal()
+			  end
+			  
+		  	if s.timer.pill == 0 then
+		  	 s.pill = false
+		  	 s.timer.pill = 600
+		  	end
+		  end
+		  
+		  -- invincible on hit
+		  if s.invincible and not s.pill then
+			  s.timer.invincible-=1
+			  if flr(time()) % 2 == 0 then
+			   for c=1,16 do
+				  	pal(c,7)
+			  	end
+		  	end
+		  		  	
+		  	if s.timer.invincible == 0 then
+		  		s.invincible = false
+		  		s.timer.invincible=60
+		  	end  	
+		  end
+		 end
+		 	 
+		 -- render player/zombie-sprites
+	 	spr(s.img,s.x,s.y,1,1,s.fliph)
+	 	
+	 	-- rest color replacements
+		 pal()
+	 end
+	 
+	 -- particles
+	 for p in all(particles) do
+	  circfill(p.x,p.y,p.size,8)
+	 end 
+	 
+	 -- weapon
+	 if aimline.visible then
+	  if player.invincible then
+	   pal(1,7)
+	  end
+		 line(aimline.x1,aimline.y1,aimline.x2,aimline.y2,1)
+		 pal()
+		end
+	
+	 -- projectiles 
+	 for p in all(projectiles) do
+	 	circfill(p.x,p.y,1,p.col)
+	 end
+	 
+	 -- rain
+	 for r in all(rain) do
+	  line(r.x,r.y,r.x,r.y+3,6)
+	 end
+	 
+		-- light spot 
+		if lightspot1 < 36 then
+		 lightspot1+=1
+		end
+		
+		if lightspot2 < 50 then
+		 lightspot2+=1
+		end
+		
+		fillp(0b0101101001011010.1)	
+		circfill(player.x+4,player.y+4,lightspot1,0x1800)
+		fillp()
+		circfill(player.x+4,player.y+4,lightspot2,0x1800)
+	 
+	 -- mouse cursor
+	 spr(7,mousex,mousey)
+	 
+	  -- reset camera
+	 camera()
+	 	 
+	 --hud 
+	 print("\*5♥",0,2,1)
+	 for l=0,player.hp-1 do
+	  print("\^o2ff\8♥",l*8 + 4,2,8)
+	  if player.pill then
+		  print("\^o9ff\8♥",l*8 + 4,2,10)
+	  end
+	  circfill(l*8+1,3,0,7)  
+	 end
+	 
+	 print("\^o101\f7웃"..killcounter,42,2,7)
+	 print("\^o101\f8웃"..killcounter_highscore,60,2,7)
+	 
+	 if player.state == "dead" then
+		 -- running blood on players death
+		 for b in all(runningblood) do
+		  line(b.x,b.y,b.x,b.y+b.length,8)
+		 end
+		 
+	  local x=64-(#player.deathtext*2)
+			print("\^o7ff\f8"..player.deathtext,x,60)
+	  print("\^o8ff\f7PRESS ❎ TO RESTART",27,sine_wave(x,70,2,0.05),7)
+	  
+	  if new_highscore then
+	   print("new highscore",78,2,10)
 	  end
 	 end
-	 	 
-	 -- render player/zombie-sprites
- 	spr(s.img,s.x,s.y,1,1,s.fliph)
- 	
- 	pal()
- end
- 
- -- particles
- for p in all(particles) do
-  circfill(p.x,p.y,p.size,8)
- end 
- 
- -- weapon
- if aimline.visible then
-  if player.invincible then
-   pal(1,7)
-  end
-	 line(aimline.x1,aimline.y1,aimline.x2,aimline.y2,1)
-	 pal()
-	end
+	 	 	 
+	-- main menu
+ elseif game_state == "mainmenu" then
+   
+  -- background image 
+  local cm=[[
+111111dddddddddddd666666666666666682222222111111111111111111112222122112222222222111266666666666666666666dddddd1111111111111111
+11111dddddddddd6666666666661122228888882122222222222211122222222222222128828882222222226166666666666666666dddddd111111111111111
+1111ddddddddd6666666666661222222888888822222222228822221222882222221011188288888228882221666111116666666666ddddddd1111111111111
+111ddddddddd666666666661222222228888882221222888288222888888820000000111882888882288882211111111111666666666dddddddd11111111111
+11dddddddd666ddd66666622888822288888882211222888888888888888880000000011882222222288882221122882221266666666ddddddddd1111111111
+1dddddddd666666d66666628888882888888822211022888888888e8e8888800000000110022222222888822221128882222266666666dddddddddd11111111
+1ddddddd66666ddd666662288888828882222122110022288888eee8888882000000001100000008882888882222228822222166666666ddddddddddd111111
+ddddddd66666ddd66666628888888222222001211100122228888888880002200000000110000008888888888222288888822111666666ddddddddddddd1111
+dddddd6666dddd6666662888e88822220000002111000222222888888000002200000001110000002228888888888888888222111666666dddddddddddd1111
+dddddd666ddd666666622888888822200000002111000200000000000000002220000000110000002228e8888888888222222221116666666ddddddddddd111
+ddddd6666dd66666662288888888222d0d00002110000220000000000000000280000000111000002228eeee888e888222222221111666666666ddddddddd11
+ddddd66ddd6666666122888ee88822dddd000221100000220000000000000002880000000111000222288eee8888888882222222111166666d66666ddddddd1
+dddd666d66666661222288eee88822dd00000222100000222000000000000000282000000001102221188ee88e88888888888222221166666ddd6666ddddddd
+dddd66666d666611222288eee8882dddd00028821100000222000000000000000228800000002222210028e88888888888888222221166666ddd6666ddddddd
+dddd6666dd666611222288ee88822dd00022882211000002820000000000000000028820002220022100028888888888288882222221666666dd66d6ddddddd
+dddd666dd66666122228888888221dd000228822111000008820000000000000000022222222022221000288888882222888802222216666666dd66dddddddd
+ddd6666d666666222288888882211dd0000022100110000002220000000000000000000000002222211000028888822288820002222111666666dd6dddddddd
+ddd666666666662288222888222116600000000000110000002280000000000000000000002222882110000000011022882000012221116666666d6dddddddd
+ddd6666666662228882222222211166d0000000000110000000222200000000000000000222202882211000000011000882000002222211666666dddddddddd
+d6666666666222888822222211116dddd000000000011000000002220000000000000002220002222211000000110000882000000222211666666666ddddddd
+666dd666662228888222226666666ddddd00000000000000000000022882200000002222000000288211000000110000222000000222222666666666ddddddd
+666dd666612228e882226dd66666dd000d00000000000000000000000002888888882200000000088221000001100000222000000028822266666666ddddddd
+666dd6662288888e82226d66ddddd6d06d00000000000000000000000000000000000000000000000022000000000000222100000008822266666666ddddddd
+666d66622888888882226d6d0d006660d6000000000000000000000000000000000000000000000000000000000000002221000000022222166666666dddddd
+66dd6622288888e882216666606066d6d0000000000000000000000000000000000000000000000000000000000000002221000000022221166666666dddddd
+6dd66122222288888220060d006066d6000000000000000000000000000000000000000000000000000000000000000022210000000122211666666666ddddd
+6d66622222288882222066000d666dd6000000000000000000000000000000000000000000000000000000000000000002110000000012221111666666ddddd
+6d66122288888882221166606dd6dd600000000000000000000000000000000000000000000000000000000000002222211100000000022211116666666dddd
+6d662228888822888211006dddd6d6600000000000000000000000000000000000000000000000000000000000001111111000000000000222111666666dddd
+6d662228888228888211606dd6d66600000000000000000000000000000fffffffff00000000000000000000000011110000000000000110222111666666ddd
+6d6622288822888882666606ddd66000000000000000000000000000fffffffffffffff000000000000000000000000000000000000001000222212666666dd
+6d66222888228882066ddd0d00006000000000000000000000000ffffffffffffffffffff9000000000000000000000000000000000011000012216666dd66d
+6661122222228882066d6dd6000d000000000000000000000000ffffff77ffffff77fffff99000000000000000000000000000000000100001222116666d666
+6666612222228880066dd6d6000dd000000000000000000000ffffffff7777f77777ffffff994000000000000000000000000000000000002222211666ddd66
+66666622222288800006d6dd0006d60000000000000000000ffffffffff7777777fffffffff99400000000000000000000000000000000012122211666ddd66
+6666662288888880000066d0060006666000000000000000fffffffffffffffffff9ffffffff99900000000000000000000000000000002222222116666dd66
+6666662888888800000006d0d6dd00d6660000000000000fffffffff99fffffff999fffffffff9990000000000000000000000000000002288222116666d666
+66666688882200000000066ddd6dd0dd66000000000000fffffffffff999999999fff222228ff9994000000000000000000000000000022888222116666dd66
+666666888200000000000666dd66ddd666000000000000ffff82828ffff999999ff82882289fff999000000000000000000000000000128888822266666dd66
+6666622222000000000000666d6066dd6600000000000ffff8288282fffff999ff22828299ffff99940000000000000000000000000022888e888226666ddd6
+6666622220000000000000066dd000dd6600000000000ffff22222282ffffffff2828229ff8ffffa990000000000000000000000000022888ee888266666ddd
+66661222200000000000000666d006dd6d00000000009fffff9222822299fffff2822977fffffff99940000000000000000000000000288888888826666666d
+66661222210000000000000066d66ddd6d6000000000ffffffff99288299fff922299f779144f8f9a9900000000000000000000000002282288222266666666
+66661122211000000000000000dd6ddd6dd000000000ffffff4197922229fff922111111449ff8ffaa900000000000000000000000000282288222266666666
+6666612222100000000000000000dd6dd6d00000000fffffff9411111149fff99449999999fff88f9a940000000000000000000000000088288282266666666
+6666612222200000000000000000006dddd00000000fffffffff99994449fff999944fffff788fff9a940000000000000000000000000008288222266666666
+666661228820000000000000000000066d600000000fff77fffff44ff99ffffff9ffffff7778f8899a940000000000000000000000000000222222266666666
+6666662888200000000000000000006666600000000ff777ffffffffffffffffffffffff7788f8f89a990000000000000000000000000000022882266666666
+666666288800000000000000000006ddd6000000000fff77ffffff888882ffff8888fffff777ff99aa9900000000000000000000000000002228822666666d6
+6666662888000000000000000000ddd600000000000ffff7ffff8888788e84288ee8888fffff8898aa9400000000000000000000000000002122222666666dd
+66666628e80000000000000000066000000000000009ffffff8887ee888e84888e7e8888fff88899aa94000000000000000000000000000022222226666666d
+666666288800000000000000006d0000000000000000ffffff88eee282828448888887e8fff88292aa90000000000000000000000000000002222212666666d
+666666288888000000000000066d0000000000000000fffff88e8888888849428228e7888fff8922a9400000000000000000000000000000002222221666666
+666666288e88000000000000066d60000000000000009ffff8e82288282999942888888e8ff9992a99400000000000000000000000000000000022222666666
+666661288888000000000000066d60000000000000000fff88ee8228889999999288222888999aa299000000000000000000000000000000000002222166666
+666611288880000000000000006dd6000dd00000000009ff8888e82289999999982228282899aa9994000000000000000000000000000000000000222266666
+6666611228820000000000000000d6d005500000000000ff82282828899999999228ee8ee89aaa9990000000000000000000000000000000000000222216666
+666661122888000000000000000006d6011011000000009f8222288299ffffff918822e88889929940000000000000000000000000000000000000222216666
+666666112888000000000000000000d6d555550000000009888228299ff7777ff9288822228a999400000000000000000000000000000000000000222212666
+66666662222200000000000000000156dd55551000000000888282999ffffffff99228882889994000000000000000000000000000000000000002222216666
+6666666882220000000000000000055566665550000000008222899999fffff9999922822889940000000000000000000000000000000000000002882216666
+666661888822000000000000000015566d116551000000008228899fffffffffff9982222889400000000000000000000000000000000000000002882226666
+666662888882000000000000000055611d01165500000000822829fffff77777ff9988282824000000000000000000000000000000000000001022882266666
+666668888882000000000000000d56110d001165d000000088882999fff77777ff9928282820000000000000000000000000000000000000002222222166666
+66666888888200000000000000d1561000d001651d000000882220dd9fff777ffff998882280000000000000000000000000000000000000012882222666666
+6666628822822000000000000011561000000165110000000822011dddd9ffffff9902888800000000000000000000000000000000000000022882226666666
+66666288888222000000000000115610000001651100000002221176666dddddddd111828200000000000000000000000000000000000000022222226666666
+6666112888222221000000000011561100001160110000000821117766666666666111822200000000000000000000000000000000000000022222266666666
+6666112828888821100000000011556110011605110000d1112111777776666666611188811d000000000000000000000000000000000000088222266666666
+666611282288888210000000001155161111615011000d11112111777777777777711112211111d000000000000000000000000000000000088222266666666
+666611282288888220000000001155516666150011001111111011777777777777711108211111111d000000000000000000200000000000022222666666666
+66666112228e8882200000000011555555555550111d111111110177777777777771101211112221011d0000000000000002200000000000022222666666666
+6666611888888882200000000011555555050000111111111111101777777777771101111111212211111d00000000000022222000000000022226666666666
+66666128888828822000000000111555555550501111111111111101166666666100111111112111120101d0000000000002222200000000222226666666666
+666661188888888220000000000115551111050111111111111111100000000000111111111122821111101d000000000002888220000000228226666666666
+6666662888ee8882200000000000155166661001111111111111111111111111111111111211228201010101000000000001288820000028822216666666666
+66666628888888822000000000000516666661099999111111111111111111111111111112112882111111101d0000000001188822002228822216666666666
+66666662888888222000000000000515666651099fff91111111111111111111111111111111222212010101010000000000111828822228822116666666666
+66666612888822210000000000000515dddd5109fffff911111111111111111111111111111111112211101010d0000000000111288822288221166666d6666
+6666666228222210000000000000451dddddd1049fffff91111111111111111111111111111881022101010100d000000000001128888882822116666666d66
+66666666222220000000000000044501dddd10029ffff4411111111111182111111111111111821111101110101d00000000000112ee888222211166666666d
+66666666222200000000000000444050111100049fff4ff111111111112d1211111111111822820101010101010000000000000012ee88822221116666666dd
+666666612000000000000000004994000000002249ff4ff911111111112112111111111118821211201010101010d0000000000011288888222111666666666
+6666661000000000000000000299994111111222249ff444111111111102201111111111082201012101000100000d000000000001188e88822211688666666
+6666666000000000000000000499ff9dddddd2222249fff9111111111110011111111111122111102110101010101000000000000018888882221666866d666
+666666660000000000000000049f9ff555566ff4422299991111111111111111111121012201010101010100000000d00000000000088822222266666866d66
+666666611000000000000000049f9ff555566f4fff42111111111111111111118111111222211010101010101010001d0000000000002288822266666866d66
+66666611220000000000000004949ff555566f49992411111111111111111111112801022121020101010000000000010000000000000288822266668866d66
+666666772200000000000000049944f55556694444942111111111111111111811822111122022101010101010101000100000000000008882226666666d666
+66666666222228800000000000499945555669999924941111111111111111821121110222010101010001000000000000000000000008888222166666dd666
+666666661122228800000000042999955556624442ff94111111118118111111111111221010101010101010001000000d0000000000088e882211666686666
+666666661122282888800000044999966666699fffff42111111118111111111011102010101010100000000000000000100000000000888888221166686666
+6666666611122888888000000499999dddddd99fff94f4111111818111118211111111121120101010101000000000000000000000000088888221166666688
+666666666111222222822200049fff49999999999249f411111111111112d1211101012201220100010000000000000000d0000000000000088221666666666
+6666666666111222222288202299ff94444422224999f4111111111111121121111110211022101010100000001000000010000000000000088226666666666
+66666666666111222228888822299ffffffffff9f99942111111111111102201010121010101000000000000000100000000000000000000002226666666666
+666668666666672288888ee8224999fffffffff9f94441111811111111110011111111101010101010101000000100000000000000000000002226666666666
+666666666666662288888ee82249ff949fffff9924f94111111111111111110101010101010001000000000000010000000d000000000000002226666666666
+6666666666666672228288882249fff944222244499421111111111111111111101110101010101000100000000010000001000000000000088226666888666
+666668666666666222882888224999ff9999999f994211111111111101110101010121010001000000000000000010000001000000000000088822666888666
+6666686686666661222228882209999fffffff9f941111111111111111111111111220101010101010000000000001000001000000000000088822166686666
+d666688886666661122228822222249f99999f94411111111111111111010101010101210100000000000000000001000001000000000000008822216688666
+dd66888866666666122222822222222249999241111111111111111111111111101010201010101000000000000001000001000000000000002222221668666
+dd66666666866666112222888222222224444115111111111111111101018201010122210000000000000000000001000001000000000000002222221668666
+dd6666666666666667222288822222288211155500011111111111111112d12011101010101010001000000000000d000001000000000000000882222668886
+ddd6666666666888867222888222122888555555000111111111110111021121010101000000000000000000000001000001000000000000000882228866886
+ddd6666666666666666722228222288888855555000111111111111111102200101010101010000000000000000001000001000000088000000222288886886
+dddd66666666666686662222222228888e866665000011111111010101010001000100000000000000000000000001000001000008888800000222888888686
+dddd666666666668866622222222288e88866665000011111111111111101110101010101000100000000000000000100000000008e88880022221888886886
+ddddd66666666886666682222282228888855550000001111101110101010101010000000000000000000000001dd1000010000000008888822211888866226
+ddddd66666688886666882222222222888200000000001111111111110101010101010100000000000000000010000000010000000008828822211888662626
+dddddd6868888886868866122222222222200000000000110101010101010101000000000000000000000000100000000010000000008828822211888662d26
+1ddddd886668886688886667eee22222222200000888801111111110111010101010100010000000008888000000100888800000000008888221ee888662266
+11ddddd66668886668666666688e2211122202222e8880111101010101010100010000000000000008e8880000001008e880000000880888222e888886ddd66
+11dddddd66668866688666666888122222222222288880111111101010101010101000100000000088888800000010088888000000e80002222888888dddd6d
+111ddddddddd886666886666888811122288222228888e810101010101010000000000000088000888888800000100088ee8000000880022228888888ddd2dd
+11112ddddd6ddd6ddd666888886881122288882122288ee88111111010188010101010000888888888882288801000088ee82222208802222888888882262dd
+11111dddddd2dd68ddd66888886881112222222112288888888101010108810000000008888888888222228888000000888822222288222288888888886d22d
+11111dddddd288866dd6668688688811222222111222222288811010108ee880001000888888288822222228888e8888888882888882222e88888888882222d
+1111112222d8ddd6666666666868881eeeeeeee111222222222101888e888882000022888888222222211222888888e888888288888222288888888dd62222d
+11111122dddddddd866866866668888888888888eeeeee122222228888888882202222882222222222222222288828888888822222222118888888662222222
+11112212dddddd228d666666d6668888888888888888888122222222888822222222228822222222222222222222222222222222222111e88888888dddd2222
+111112111dddd222dddddd66ddd6666888888888888888811122222222222222222eeeeeeeeee2221111122222222222211221111e1111888888882dddd22d2
+11111111112dd222222ddddddddd6666888888866668888811112222222222eeeee8888888888e211111111222112222111111eeeee11e888888882dddd2211
+111111111121ddddddddd2d222dd66668888888666688888811111112eeeeee88888888888888821eeeeeee1121111111111ee8888888888688dd222dd22111
+111111111121112ddd22d22222dddd6668888866666688888888888888888888888888888888888888888888111eeeeeeeee8888888888688888d222ddd1111
+1111111111111111ddd22222222222d6688886666666688888888888888888888888888888888888888888888888888888888888888886666dddd2222dd1121
+	]]
 
- -- projectiles 
- for p in all(projectiles) do
- 	circfill(p.x,p.y,1,p.col)
- end
+  draw_img(cm)
  
- -- rain
- for r in all(rain) do
-  line(r.x,r.y,r.x,r.y+3,6)
- end
- 
-	-- light spot 
-	fillp(0b0101101001011010.1)	
-	circfill(player.x+4,player.y+4,36,0x1800)
-	fillp()
-	circfill(player.x+4,player.y+4,50,0x1800)
- 
- -- mouse cursor
- spr(7,mousex,mousey)
- 
-  -- reset camera
- camera()
- 
- --hud 
- print("\*5♥",0,2,1)
- for l=0,player.hp-1 do
-  print("\^o2ff\8♥",l*8 + 4,2,8)
-  circfill(l*8+1,3,0,7)  
- end
- 
- print("\^o101\f7웃"..killcounter,42,2,7)
- 
- -- running blood on plaers death
- for b in all(runningblood) do
-  line(b.x,b.y,b.x,b.y+b.length,8)
- end
- 
- if player.state == "dead" then
-  local x=64-(#player.deathtext*2)
-		print("\^o7ff\f8"..player.deathtext,x,60)
- end
- 
- --print(player.timer.spdboost,0,0,7)
- --print("\^o7ff\f1outline",2,2)
+		print("\8\^w\^t\^o7ffinfected \fcpixels",8,22,8)
+		print("\^o7ff\f8BY BADRICK",4,36,11)
+	 print("\^o7ff\f8웃"..killcounter_highscore,88,36,7)
+	 print("\^o0ff\f7PRESS ❎ TO START",27,sine_wave(32,92,2,0.05),7)
+	end
 end
 
 -->8
 -- utils
+
+-- draw image of string
+function draw_img(colormap)
+	local rows=split(colormap,"\n",false)
+ for y,r in pairs(rows) do
+	 y-=1
+	 if r then
+	 	local columns=split(r,"",false) 
+	 	for x,c in pairs(columns) do
+	 	 if c != " " then
+		 	 x-=1
+		   rectfill(
+		   	x,
+		   	y,
+		   	x,
+		   	y,
+		   	"0x"..c
+		   )
+		  end
+	 	end
+	 end
+ end
+end
 
 -- sine wave
 function sine_wave(x,y,amp,frq)
@@ -618,15 +927,6 @@ function new_projectile(x,y,spd,ang,col)
  }
 end
 
--- create rain particles
-function new_rain(x,y,spd)
- return {
-  x=x,
-  y=y,
-  spd=spd
-  }
-end
-
 -- create running blood
 function new_runningblood(x,y)
 	return {
@@ -668,10 +968,11 @@ function new_particle(x,y,xspd,yspd,size,col)
 end
 
 -- create blood
-function create_blood(x,y)
+function new_blood(x,y)
  local xoffset = flr(rnd(6))-3
  local yoffset = flr(rnd(6))-3
  local radius = flr(rnd(3))
+ 
  return {
 	 ttl=1000,
   x=x+xoffset+4,
@@ -682,7 +983,11 @@ end
 
 -- create zombie
 function new_zombie(sp) 
- local img=({8,8,8,24,24,12,28,28,16,16,16,20,32,32})[randi(14)]
+ local img=({8,8,8,8,
+ 											 24,24,12,28,
+ 											 28,16,16,16,
+ 											 20,16,37,37,
+ 											 37,41,41,41})[randi(20)]
  local imgs=img
  local imge=img+3
  local hp=randi(3) + 5
@@ -693,7 +998,7 @@ function new_zombie(sp)
  local col= ({1,2,5,6,8,9,10,12,13,14})[randi(10)]
  local col2=({1,2,5,6,8,9,10,12,13,14})[randi(10)]
  local dropchance=10
- 
+
  -- enemy types.........
  -- * dog
  if img == 20 then
@@ -704,13 +1009,19 @@ function new_zombie(sp)
   dropchance=5
  end
  
+ -- * crawling
+ if img == 37 then
+	  spd=0.1
+	  hp=3 
+ end
+ 
  -- * fatso
  if img == 12 then
   spd=0.25
   hp=randi(10) + 5
  end
  
- -- * infected
+ -- * vomitter
  if img == 32 then
   spd=0.1
   dropchance=1
@@ -721,7 +1032,7 @@ function new_zombie(sp)
   
  return {
   hp=hp,
-  timer={hit=15},
+  timer={hit=15,vomit=600},
   name="zombie",
   state="walk",
   img=img,
@@ -819,21 +1130,21 @@ __gfx__
 0000000000f110000f111000f0111f000f1110000011100000111000000000000116160001611000011610000161100066111110066111166611111006611116
 00000000001000000010100000001000001010000010100001001000000000000101000001001000001010000100100001100100011000100011001001100010
 00662000006620000066200000662000000000000000000000000000000000000006620000066200000662000006620009a9990009a9990009a9990009a99900
-06686800066868000668680006686800040000000000000004000000000000000068680000686800006868000068680009986800099868000998680009986800
-06662200066622000666220006662200400004000400040040000400040004000066660000666600006666000066660009666600096666000966660009666600
-07622000076220000762200007622000400004404000044040000440400004400077770000777700007777000077770009eeee0009eeee0009ee6e0009eeee00
-07720000077600000777002007760000011184214111842101118421411184210066776000666760006667600066676009e6ee6009e66e6009e6ee6009e66e60
-07662620076226000762260007622600028420000284200002842000028420000006700600076060000766000007606000ee600000eee06000eee00600eee060
-01111000011110200116100001111020040040000400400002004000040040000011100000111000001110000011100000111000001110000011100000111000
-01010000010010000010100001001000400002000400400000240000040040000100100000101000000110000010100000100100001010000100100000101000
-00076600000766000007660000076600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00068600000686000006860000068600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00d7660000d7660000d7660000d76600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00767600007676dd06767600007676dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-6666dddd0666ddd00666ddd00666ddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-60d66d0060d66d0006d66d0d60d66d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-006dd600606dd600006dd600606dd600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00060600006006000060600000600600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+06686800066868000668680006686800060000000000000006000000000000000068680000686800006868000068680009986800099868000998680009986800
+06662200066622000666220006662200600006000600060060000600060006000066660000666600006666000066660009666600096666000966660009666600
+07622000076220000762200007622000600006606000066060000660600006600077770000777700007777000077770009777700097777000977670009777700
+07720200077602000777022007760200055586256555862505558625655586250066776000666760006667600066676009767760097667600976776009766760
+07662620076226000762260007622600028620000286200002862000028620000006700600076060000766000007606000776000007770600077700600777060
+01111000011110200116100001111020060060000600600002006000060060000011100000111000001110000011100007777000077770000777700007777000
+01010000010010000010100001001000600002000600600000260000060060000100100000101000000110000010100000100100001010000100100000101000
+00076600000766000007660000076600090000090000000000000000000000000000000000666600066660000666600006666000000000000000000000000000
+00068600000686000006860000068600000aa0000000000000000000000000000000000006686860668686006686860066868600000000000000000000000000
+00d7660000d7660000d7660000d76600a9a9aba00000000000000000000000000000000006666660666666006666660066666600000000000000000000000000
+00769a0000769add06769a0000769adda8b99b900000666000006660000066600000666000667700066770000667700006677000000000000000000000000000
+6669a79d0669a7900669a7900669a790099ba8990276868602768686027686860276868600577666057766605776660005776660000000000000000000000000
+60d99a9060d99a9006d99a9d60d99a90a9a989aa2776666607766666277666660776666600507776050777065077760005077706000000000000000000000000
+006d9900606d9900006d9900606d9900ab99baa00776626027676260076762602767626000002110000211000021100000021100000000000000000000000000
+000606000060060000606000006006000aa9a0090006600500660005006600500066000502820001028201000281000002820100000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -876,10 +1187,10 @@ b3333b331114433343334467333888333339988855b3333333317383333333373010010355555555
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000676000000a900000000000000000000444f44000000000000000000000000000000000000000000000000000000000000000000000000000000000
-06787600008e80000a982a900566666000000000f4f4444400666660000000000000000000000000000000000000000000000000000000000000000000000000
-07888700008a9000082a98205555555000000000444444f406744470000000000000000000000000000000000000000000000000000000000000000000000000
-06787600008a90000a9a9a90420500000000000099aaaaa906066660000000000000000000000000000000000000000000000000000000000000000000000000
-0ddddd00008e80000a999a9044500000000000003b3b3b3b00667760000000000000000000000000000000000000000000000000000000000000000000000000
+06787600008e80000a982a900566666008889990f4f4444400666660000000000000000000000000000000000000000000000000000000000000000000000000
+07888700008a9000082a98205555555088e89999444444f406744470000000000000000000000000000000000000000000000000000000000000000000000000
+06787600008a90000a9a9a90420500008888999999aaaaa906066660000000000000000000000000000000000000000000000000000000000000000000000000
+0ddddd00008e80000a999a9044500000022244403b3b3b3b00667760000000000000000000000000000000000000000000000000000000000000000000000000
 00000000008e80000990099024000000000000008822282800055500000000000000000000000000000000000000000000000000000000000000000000000000
 00000000005550000000000000000000000000000444444000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __label__
@@ -1057,6 +1368,9 @@ __sfx__
 000600003c67037670326702e67028670246701f6601b66016660106500a65005650016300062000610006100a600086000760006600056000460004600036000360003600036000360004600046000460004600
 001a00200173401025117341102512734120250873408025127341202501734010251173411025087340802505734050250d7340d025147341402506734060250873408025127341202511734110250d7340d025
 001200003006029050230501e0501a04016040110400e0300a0300703006020040200301002010010100000000000030000300003000087000070000700007000070000700007000070000700007000070000700
+00020000112501225014250172501a2501d250202501f2501d2501a250172501325001200352003b2001620000200002000020000200002000020000200002000020000200002000020000200002000020000200
+000700000f5500e5500d5500c5500b550095500855007550065500555004550045500255002550015500055000550005500055000550005500055000550005500055000550035000350002500025000250000000
+00040000083500d3500e35011350153501935020350243500e35013350163501b350273502f350363503c35013200083000000000000132000630000000000001320006300000000000013200073000000000000
 __music__
 03 01054344
 02 03424344
