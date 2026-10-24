@@ -8,19 +8,21 @@ function _init()
  mousex=0
  mousey=0
  mouseb=0 -- button
- mousebp=0 -- button pressed
  mousebr=0 -- button released
+ charge_blocked=false
+ moving=false
  
  attempts=0
  
  ball=new_ball(1,64,64)	
  obstacles={
-	 {x=32,y=40,img=6,w=8,h=8},
-	 {x=32,y=56,img=6,w=8,h=8},
+	 {x=32,y=40,img=6,w=8,h=8,spd=0.5},
+	 {x=32,y=56,img=6,w=8,h=8,spd=0.5},
  }
 
+	distance=0
  spd=0
- maxspd=8
+ maxspd=0
  angle=0
  
  aimline={
@@ -49,33 +51,58 @@ function _update60()
  mouseb=stat(34)
  
  -- aim and charge power
- if mouseb == 1 then
- 	angle = atan2(mousex-ball.x,mousey-ball.y)
- 	mouse_angle = atan2(mousex-(ball.x+4),mousey-(ball.y+4))
- 	mousebp=1
+ if mouseb == 0 then
+  charge_blocked=false
+ elseif moving then
+  charge_blocked=true
+ end
+ 
+ -- cancle charge
+ if mouseb == 3 then
+ 	charge_blocked=true 
+	 aimline.visible = false
+	 spd=0
+	 moving=false
+ end
+
+ if mouseb == 1 and 
+    not moving and 
+    not charge_blocked 
+ then
+ 	angle =  atan2(mousex-(ball.x+4),mousey-(ball.y+4))
+ 	mouse_angle = angle
+  distance=dist(ball,{x=mousex,y=mousey})
+  maxspd=ceil(distance/3)
+  if maxspd > 8 then
+   maxspd=8
+  end
+  
+  mousebr=1
  	
+	 spd=min(maxspd,spd+0.05)
+	 
   ball.xspd = cos(angle) * spd 
   ball.yspd = sin(angle) * spd
 
 	 -- aim line 
 		aimline.x1=ball.x+4
 		aimline.y1=ball.y+4
-		aimline.x2=ball.x+4+cos(mouse_angle)*(spd*2)
-		aimline.y2=ball.y+4+sin(mouse_angle)*(spd*2)
+		aimline.x2=ball.x+4+cos(mouse_angle)*(distance)
+		aimline.y2=ball.y+4+sin(mouse_angle)*(distance)
 	 aimline.visible = true
-	 
-	 spd=min(maxspd,spd+0.1)
-  mousebr=1
  end
  
  -- count attempts
- if mouseb == 0 and  mousebr==1 then
+ if mouseb == 0 and 
+ 			mousebr==1 
+ then
  	attempts+=1
+  moving=true
+  mousebr=0
  end
 
  -- ball moves
- if mouseb == 0 and mousebp == 1 then
-  mousebr=0
+ if moving then
   aimline.visible = false
   o_collide_x=false
   o_collide_y=false
@@ -124,15 +151,27 @@ function _update60()
   else
    ball.y+=ball.yspd
   end 
+
+  if spd==0 then
+   moving=false
+  end
  end
  
  -- hole reached
- if collide(ball.x,ball.y,2,1) and
+ if has_flag(ball.x+4,ball.y+4,1) and
     spd==0
  then
 		ball.x = 64
-		ball.y = 64 	
+		ball.y = 64	
 		attempts=0
+ end
+ 
+ -- moving obstacles
+ for o in all(obstacles) do
+  o.x+=o.spd
+  if collide(o.x,o.y,0,0) or aabb(o,ball,0) then
+  	o.spd *= -1 
+  end
  end
 end
 
@@ -142,15 +181,22 @@ function _draw()
  
  map(0,0) 
  
-
  for o in all(obstacles) do
 	 spr(o.img,o.x,o.y)
 	end
  
  spr(ball.img,ball.x,ball.y)
 
+ --circ(ball.x+4,ball.y+4,0,8)
+ 
  if aimline.visible then
 	 line(aimline.x1,aimline.y1,aimline.x2,aimline.y2,8)
+	end
+	
+	-- power
+	if spd > 0 and aimline.visible then
+	 line(ball.x,ball.y-5,ball.x+spd,ball.y-5,8)
+	 line(ball.x,ball.y-4,ball.x+spd,ball.y-4,8)
 	end
 	
  circfill(mousex,mousey,0,10)
@@ -158,12 +204,16 @@ function _draw()
  camera()
 
  print(attempts,0,0,7)
- 
-
- 
+ print(spd)
+-- print(spd)
 end
 
 -->8
+
+--dist
+function dist(o1, o2)
+  return sqrt(((o1.x+4) - o2.x)^2 + (o1.y - o2.y)^2)
+end
 
 -- create new ball object
 function new_ball(img,x,y)
@@ -186,6 +236,7 @@ function has_flag(x,y,flag)
 	
 	return false
 end
+
 
 -- collision using is_solid (fget)
 function collide(x,y,offset,flag) 
@@ -211,12 +262,12 @@ function aabb(obj1,obj2,offset)
 end
 __gfx__
 00000000000000005555555533333333333333333333333300000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000077760055555555335dd533333333333333333300555500000000000000000000000000000000000000000000000000000000000000000000000000
-007007000777776055555555350000533333333333555533055dd550000000000000000000000000000000000000000000000000000000000000000000000000
-000770000677777055555555300000033333333335dddd5305dddd50000000000000000000000000000000000000000000000000000000000000000000000000
-0007700006677770555555553000000333333333115d66d5055dd550000000000000000000000000000000000000000000000000000000000000000000000000
-007007000d6666605555555530000003333333331115ddd501555510000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000d66d005555555533000033333333331111555100111100000000000000000000000000000000000000000000000000000000000000000000000000
+000000000077760055555555335dd533333333333333333300555500008888000000000000000000000000000000000000000000000000000000000000000000
+007007000777776055555555350000533333333333555533055dd550088888800000000000000000000000000000000000000000000000000000000000000000
+000770000677777055555555300000033333333335dddd5305dddd50088888800000000000000000000000000000000000000000000000000000000000000000
+0007700006677770555555553000000333333333115d66d5055dd550088888800000000000000000000000000000000000000000000000000000000000000000
+007007000d6666605555555530000003333333331115ddd501555510088888800000000000000000000000000000000000000000000000000000000000000000
+0000000000d66d005555555533000033333333331111555100111100008888000000000000000000000000000000000000000000000000000000000000000000
 00000000000000005555555533333333333333333333333300000000000000000000000000000000000000000000000000000000000000000000000000000000
 __gff__
 0000010200010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
