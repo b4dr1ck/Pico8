@@ -15,6 +15,7 @@ function _init()
  	{x=32,y=48,spd=0.5,c=5,w=8,h=8,collide=false},
  	}
  balls3={{x=8,y=64,c=11}}
+ ball4={x=64,y=64,r=16,angle=0,spd=0.02}
  boxes={{x=90,y=0,c=7}}
  gametimer=0
  
@@ -112,6 +113,12 @@ function _update()
 	 end
 	end
 	
+-- orbit_pos
+ local sx,sy = orbit_pos(64, 64, ball4.r, ball4.angle, 8)
+ ball4.angle += ball4.spd
+ ball4.x = sx
+ ball4.y = sy
+	
 end
 
 function _draw()
@@ -143,6 +150,9 @@ function _draw()
 	 rectfill(box.x,box.y,box.x+7,box.y+7,box.c)
 	end
 		
+	circfill(ball4.x,ball4.y,4,12)
+	circfill(ball4.x,ball4.y,2,0)
+
 end
 
 
@@ -157,12 +167,15 @@ end
 -- * last(n)     last frame
 -- * loop(bool)  loop animation
 function animate(img,first,last,spd,loop)
- img+=spd
- if img > last + 0.9 then
+ if img < last + 1 - spd then
+  img+=spd
+  
   if not loop then
    return last 
   end
-  img = first
+  
+ else
+   img = first
  end
  
  return img
@@ -221,6 +234,26 @@ function sine_wave(x,y,amp,frq)
 	 local speed = time() * 2
 	 
 	 return y + sin((x * frequency) + speed) * amplitude
+end
+
+-- orbit_pos
+-------------------------------
+-- * cx(n)						center x position
+-- * cy(n)						center y position
+-- * radius(n)		radius to orbit
+-- * angle(n)			angle (add spd to this)
+-- * size(n)				size of sprite (default 8)
+
+function orbit_pos(cx, cy, radius, angle, size)
+  size = size or 8 
+  
+  local ox = cx + radius * cos(angle)
+  local oy = cy + radius * sin(angle)
+  
+  local spr_x = ox - (size / 2)
+  local spr_y = oy - (size / 2)
+  
+  return spr_x, spr_y
 end
 -->8
 -- collision detection
