@@ -199,7 +199,9 @@ function _draw()
 	 line(ball.x,ball.y-4,ball.x+spd,ball.y-4,8)
 	end
 	
- circfill(mousex,mousey,0,10)
+	if not aimline.visible then
+	 circfill(mousex,mousey,0,10)
+	end
  
  camera()
 
