@@ -885,7 +885,7 @@ dddddd68688888868688661222222222222000000000001101010101010101010000000000000000
 	
  elseif game_state == "help" then
  	print("how to play?",1,1,7)
- 	print("kill as many zombies as possible and try to survive",1,12,5)
+ 	print("kill as many zombies as possible\nand try to survive",1,12,5)
  	
  	spr(135,4,24)
  	print("USE MOUSE TO AIM AND \nHOLD LEFT MB TO SHOOT",16,24,13)
