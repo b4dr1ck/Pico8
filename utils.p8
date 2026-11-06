@@ -255,6 +255,67 @@ function orbit_pos(cx, cy, radius, angle, size)
   
   return spr_x, spr_y
 end
+
+-- check_los (line of sight)
+------------------------------
+-- * x1(n)				  x-positon of object 1
+-- * y1(n)				  y-positon of object 1
+-- * x2(n)				  x-positon of object 2
+-- * y2(n)		    y-positon of object 2
+-- * flag(n)    flag-index of solid tile
+-- * maxdist(n) max distance to check
+function check_los(x1, y1, x2, y2 ,flag ,maxdist)
+ local dx = x2 - x1
+ local dy = y2 - y1
+ if abs(dx) > maxdist or abs(dy) > maxdist then
+   return false
+ end
+ 
+ local dist_sq = dx*dx + dy*dy
+ if dist_sq > maxdist*maxdist then
+   return false
+ end
+ local dist = sqrt(dist_sq)
+ 
+ if dist > maxdist then
+  return false
+ end  
+ 
+ -- if they are practically on top of each other, avoid dividing by zero
+ if dist == 0 then return true end
+ 
+ -- normalize the step vectors
+ -- we step by 4 pixels at a time to be fast yet precise
+ local step = 4 
+ local step_x = (dx / dist) * step
+ local step_y = (dy / dist) * step
+ 
+ local curr_x = x1
+ local curr_y = y1
+ local checked_dist = 0
+ 
+ -- march from enemy to player
+ while checked_dist < dist do
+   -- convert screen pixels to map tile coordinates (divide by 8)
+   local tile_x = flr(curr_x / 8)
+   local tile_y = flr(curr_y / 8)
+   
+   -- look up what sprite is at this map location
+   local tile_sprite = mget(tile_x, tile_y)
+   
+   -- check if that sprite has flag enabled (wall flag?!)
+   if fget(tile_sprite, flag) then
+     return false -- path blocked by a wall!
+   end
+   
+   -- advance the point forward along the ray path
+   curr_x += step_x
+   curr_y += step_y
+   checked_dist += step
+ end
+
+ return true -- path is completely clear!
+end
 -->8
 -- collision detection
 
