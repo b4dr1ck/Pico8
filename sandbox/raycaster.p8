@@ -125,6 +125,7 @@ function _draw()
 		
 		if x2 != 0 and y2 != 0 then
 		 local wall_h=min(128,flr(930/max(d,1)))
+		 --printh("d:".. d .. " index: "..i.."h:" .. wall_h)
 		 local top=64-wall_h/2
 		 local bottom=64+wall_h/2
 			rect((i-1)*1,top,(i-1)*1+1,bottom,c)
