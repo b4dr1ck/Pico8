@@ -325,11 +325,15 @@ end
 -- * y(n) 					y-position
 -- * offset(n) offset for x and y
 -- * flag(n)			flag index
-function tile_collision(x,y,offset,flag) 
+-- * size(n)   size of the object to check
+function tile_collision(x,y,offset,flag,size) 
+ if not size then
+  size=7
+ end
  if has_flag(x+offset,y+offset,flag) or
-    has_flag(x+7-offset,y+offset,flag) or
-    has_flag(x+offset,y+7-offset,flag) or
-    has_flag(x+7-offset,y+7-offset,flag) 
+    has_flag(x+size-offset,y+offset,flag) or
+    has_flag(x+offset,y+size-offset,flag) or
+    has_flag(x+size-offset,y+size-offset,flag) 
  then	
   return true
  end
@@ -398,7 +402,11 @@ end
 -- draw_img - draw image of string
 -------------------------------
 -- * colormap(str) 	a string with color-values separated by newline
-function draw_img(colormap)
+-- * size(n)   					size of one pixel
+function draw_img(colormap,size)
+ if not size then
+  size=0
+ end
 	local rows=split(colormap,"\n",false)
  for y,r in pairs(rows) do
 	 y-=1
@@ -407,7 +415,7 @@ function draw_img(colormap)
 	 	for x,c in pairs(columns) do
 	 	 if c != " " then
 		 	 x-=1
-		   rectfill(x,y,x,y,"0x"..c)
+		   rectfill(x,y,x+size,y+size,"0x"..c)
 		  end
 	 	end
 	 end
