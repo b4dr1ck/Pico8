@@ -15,11 +15,13 @@ function _init()
  ball={
   x=player.x,
   y=player.y,
+  z=0,
   xspd=1,
   yspd=1,
 	 dx=0,
 	 dy=0,
 	 r=1,
+	 t=0,
 	 move=false,
  }
  
@@ -41,12 +43,15 @@ function _update60()
    ball.move=true
    ball.xspd=1
    ball.yspd=1
+   ball.t=0
    ball.x=player.x
    ball.y=player.y
    ball.dx = stat(32)
    ball.dy = stat(33)
 		 angle=atan2(ball.dx-player.x,ball.dy-player.y)
-		 distance=flr(dist(player,{x=ball.dx,y=ball.dy}))
+		 distance=ceil(dist(player,{x=ball.dx,y=ball.dy}))
+   maxr=min(5,flr(distance/10))
+   printh(maxr)
 		 rsize=(maxr / distance) * 1.5 
 		 printh("x"..ball.dx.."y"..ball.dy)
   end
@@ -61,6 +66,8 @@ function _update60()
 	 if ball.r < 1 then
 	  ball.r=1
 	 end
+	 
+	 ball.t+=0.01
 	 
 	 local movex=cos(angle) * ball.xspd 
 	 local movey=sin(angle) * ball.yspd 
@@ -78,6 +85,7 @@ function _update60()
 	 else
 	  ball.x+=movex
 	  ball.y+=movey
+   ball.z = -sin(ball.t * 0.5) * 24
 	 end
  end 
 end
@@ -85,7 +93,7 @@ end
 function _draw()
  cls(12)
  circfill(player.x,player.y,4,7)
- circfill(ball.x,ball.y,ball.r,8)
+ circfill(ball.x,ball.y-ball.z,ball.r,8)
  
  circfill(mousex,mousey,0,8)
 end
