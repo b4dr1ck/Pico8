@@ -50,13 +50,32 @@ function init_player()
  }
  
  items={
-  baits={39,40,41,42,43,44},
-  hooks={36,37,38},
-  rods={32,33,34,35},
+  bait={
+	  {img=39,name="worms"},
+	  {img=40,name="maggots"},
+	  {img=41,name="bread"},
+	  {img=42,name="corn"},
+	  {img=43,name="locust"},
+	  {img=44,name="beetle"},
+  },
+  hook={
+	  {img=36,name="small"},
+	  {img=37,name="medium"},
+	  {img=38,name="large"},
+  },
+  rod={
+   {img=32,name="woody ralph",min_dist=12,max_dist=32,spd=0.1,col=4},
+   {img=33,name="carbon guy",min_dist=14,max_dist=48,spd=0.25,col=13},
+   {img=34,name="red stiff",min_dist=16,max_dist=64,spd=0.5,col=8},
+   {img=35,name="special one",min_dist=18,max_dist=96,spd=1,col=3}
+  },
+  tool={},
   active_bait=1,
   active_hook=1,
   active_rod=1,
-  fishes={},
+  active_tool=1,
+  active_fish=1,
+  fish={},
  }
  
  boat={
@@ -144,7 +163,7 @@ function update_player()
    player.charging = false
      
    local angle = atan2(aim_cursor.x - player.x, aim_cursor.y - player.y)
-   local dist = rod.types[items.active_rod].min_dist + ( rod.types[items.active_rod].max_dist -  rod.types[items.active_rod].min_dist) * player.chargepower
+   local dist = items.rod[items.active_rod].min_dist + ( items.rod[items.active_rod].max_dist -  items.rod[items.active_rod].min_dist) * player.chargepower
    local target_x = player.x + cos(angle) * dist     
    local target_y = player.y + sin(angle) * dist     
    
@@ -162,8 +181,8 @@ function update_player()
       flr(f.y/8) == flr(bobber.y/8)
    then
     --*** check bait and hook
-    if has_value(f.baits,items.baits[items.active_bait]) and
-       has_value(f.hooks,items.hooks[items.active_hook]) 
+    if has_value(f.baits,items.bait[items.active_bait].img) and
+       has_value(f.hooks,items.hook[items.active_hook].img) 
     then
 	    f.timetobite[1]-=1
 	    if f.timetobite[1] == 0 then
@@ -201,6 +220,17 @@ function update_player()
   local fishdx=fish.movepattern[fish.moveindex][1]
   local fishdy=fish.movepattern[fish.moveindex][2]
 
+  --*** player looks to the fish
+  local playerdx = fish.x - player.x
+  local playerdy = fish.y - player.y
+  if abs(playerdx) > abs(playerdy) then
+   set_player_direction(sgn(playerdx),0)
+  elseif playerdy != 0 then
+   set_player_direction(0,sgn(playerdy))
+  elseif playerdx != 0 then
+   set_player_direction(sgn(playerdx),0)
+  end
+
   --*** handle stamina and cooldown
   fish.stamina[1]-=1
   if fish.stamina[1] <= 0 then
@@ -213,13 +243,13 @@ function update_player()
 			if btn(❎) then
 			 local playerangle=atan2(player.x-bobber.x,player.y-bobber.y)
 			 local dist=flr(sqrt((player.x-bobber.x)^2+(player.y-bobber.y)^2))
-				bobber.x+=cos(playerangle)*rod.types[items.active_rod].spd
-				bobber.y+=sin(playerangle)*rod.types[items.active_rod].spd
+				bobber.x+=cos(playerangle)*items.rod[items.active_rod].spd
+				bobber.y+=sin(playerangle)*items.rod[items.active_rod].spd
 				fish.x=bobber.x
 				fish.y=bobber.y
 				-- **** got the fish!!!
-				if (dist <= 5) then
-				 add(items.fishes,fish)
+				if (dist <= items.rod[items.active_rod].min_dist/2) then
+				 add(items.fish,fish)
 			  bobber.active = false
 				 bobber.state=""
 				 del(fishes,fish)
@@ -312,10 +342,11 @@ function draw_player()
  			bobber.active or
  			player.charging
  then
+  local rodcol=items.rod[items.active_rod].col
   if player.charging then
-	  line(player.x+rod.xoffset+rod.chargexoffset,sine_y-4+rod.chargeyoffset,player.x+rod.xoffset,sine_y+4,4)	
+	  line(player.x+rod.xoffset+rod.chargexoffset,sine_y-4+rod.chargeyoffset,player.x+rod.xoffset,sine_y+4,rodcol)	
   else
-	  line(player.x+rod.xoffset,sine_y-4,player.x+rod.xoffset,sine_y+4,4)
+	  line(player.x+rod.xoffset,sine_y-4,player.x+rod.xoffset,sine_y+4,rodcol)
   end 
  end
 
@@ -399,12 +430,6 @@ end
 
 function init_rod()
  rod={
-  types={
-   {min_dist=12,max_dist=32,spd=0.1},
-   {min_dist=12,max_dist=48,spd=0.25},
-   {min_dist=12,max_dist=64,spd=0.5},
-   {min_dist=12,max_dist=96,spd=1}
-  },
   xoffset=0,
   chargexoffset=0,
   chargeyoffset=0,
@@ -621,6 +646,7 @@ function new_fish()
   cooldown={200,200},
  }
 end
+
 -->8
 --map
 
@@ -642,6 +668,12 @@ end
 -->8
 --hud
 function init_hud()
+ help=false
+ function toggle_help()
+  help = not help
+ end
+ menuitem(1,"toggle help",toggle_help)
+ 
  aim_cursor={
   active=false,
   x=player.x,
@@ -649,14 +681,12 @@ function init_hud()
   img=1,
   speed=1,
  }
- 
- select_cursor={
-  category=1,
-  catname={"rod","hook","bait"}
- }
- 
+
  fishing_options={
   active=false,
+  layer="menu",
+  menucat={"rod","hook","bait","tool","shop","fish"},
+  menucatindex=1,
  }
  
  new_fish_menu={
@@ -668,7 +698,7 @@ end
 
 function update_hud()
  --* aim cursor
- --** toggle aim cursor
+ --* toggle aim cursor
  if btnp(🅾️) and 
  			not bobber.active and
  			not fishing_options.active and
@@ -679,7 +709,78 @@ function update_hud()
  	aim_cursor.y=player.y+8
  end
  
- --** toggle options menu
+ --* new fish menu
+ --** close the new_fish_menu
+ if btnp(🅾️) and
+			 new_fish_menu.active
+ then
+ 	new_fish_menu.active=false
+ end
+ 
+ --* fishing options
+ --** quit menu
+  if btnp(🅾️) and
+			 not bobber.active and
+    not player.charging and
+			 not aim_cursor.active and
+			 not player.fishfight and
+			 not new_fish_menu.active and
+			 fishing_options.active and
+			 fishing_options.layer=="menu"
+	then
+		fishing_options.active=false
+	end
+ 
+ --** menu navigation
+ if fishing_options.active then
+  --*** back to menu
+	 if btnp(🅾️) then
+    fishing_options.layer="menu"
+	 end
+	 --*** menu navigation
+  if fishing_options.layer=="menu" then
+   --**** up/down
+	  if btnp(⬇️) then
+	   fishing_options.menucatindex+=1
+	  end
+	  if btnp(⬆️) then
+	   fishing_options.menucatindex-=1
+	  end
+	  
+	  if fishing_options.menucatindex > #fishing_options.menucat then
+		  fishing_options.menucatindex=1
+	  end
+	  
+	  if fishing_options.menucatindex < 1 then
+		  fishing_options.menucatindex=#fishing_options.menucat
+	  end
+
+	  --**** back
+	  if btnp(❎) then
+    fishing_options.layer=fishing_options.menucat[fishing_options.menucatindex]
+	  end
+	  
+	 else
+ 	 --**** right/left
+	  if btnp(➡️) then
+	   items["active_"..fishing_options.layer]+=1
+	  end
+	  if btnp(⬅️) then
+	   items["active_"..fishing_options.layer]-=1
+	  end
+	  
+	  if items["active_"..fishing_options.layer] > #items[fishing_options.layer] then
+		  items["active_"..fishing_options.layer]=1
+	  end
+	  
+	  if items["active_"..fishing_options.layer] < 1 then
+		  items["active_"..fishing_options.layer]=#items[fishing_options.layer]
+	  end
+	  
+	 end
+ end
+ 
+ --** open fishing menu
  if btnp(❎) and
 			 not bobber.active and
     not player.charging and
@@ -687,48 +788,10 @@ function update_hud()
 			 not player.fishfight and
 			 not new_fish_menu.active
 	then
-		fishing_options.active=not fishing_options.active		  	
- end
- 
- --** close the new_fish_menu
- if btnp(🅾️) and
-			 new_fish_menu.active
- then
- 	new_fish_menu.active=false
- end
-  
- --** control select cursor
- if fishing_options.active then
-  local dx, dy = 0, 0
-	 if btnp(⬅️) then dx -= 1 end
-	 if btnp(➡️) then dx += 1 end
-	 if btnp(⬆️) then dy -= 1 end
-	 if btnp(⬇️) then dy += 1 end
-  
-  --*** up/down
-  if dy != 0 then
-   select_cursor.category+=dy
-   if select_cursor.category > 3 then
-    select_cursor.category=1
-   end
-   if select_cursor.category < 1 then
-    select_cursor.category=3
-   end
- 	end
-
-  --*** right/left
-  if dx != 0 then
-   local catname=select_cursor.catname[select_cursor.category]
-  	items["active_"..catname]+=dx 
-  	if items["active_"..catname] > #items[catname.."s"] then
-		 	items["active_"..catname]=1
-  	end
-  	if items["active_"..catname] < 1 then
-		 	items["active_"..catname]=#items[catname.."s"]
-  	end
-  end
+		fishing_options.active=true
  end
 end
+
 
 function draw_hud()
  --* aim cursor
@@ -750,70 +813,86 @@ function draw_hud()
  
 	--* fishing options
 	if fishing_options.active then
-	 local xoffset=108+camx
-	
-	 --** menu box
- 	rectfill(xoffset,camy,xoffset+20,camy+64,5)
- 	rect(xoffset,camy,xoffset+19,camy+65,6)
- 	
+	 --** background
+	 rectfill(camx,camy,128+camx,128+camy,5)
+	 rectfill(camx+36,camy+10,128+camx,128+camy,6)
+	 rect(camx,camy,128+camx,128+camy,6)
+		print("\^o1ff\f7options menu",camx+2,camy+2,7)
+		
+	 --** menu categories
+	 for index,menu in pairs(fishing_options.menucat) do
+  	rect(camx+2,camy+(index*8)+(index*2),camx+34,camy+(index*8)+8+(index*2),0)
+  	print(menu,camx+3,camy+(index*8)+(index*2)+2,7)	
+	 end
+		
 		--** items
-		--*** rod
-  print("\^o1ff\f7rod",xoffset+2,camy+2,7)		
-  rectfill(xoffset+6,camy+10,xoffset+13,camy+17,0)  
-  if select_cursor.category==1 then
-	  rect(xoffset+5,camy+9,xoffset+14,camy+18,11)
-	 end
-  spr(items.rods[items.active_rod],xoffset+6,camy+10)
-  --*** hook
-  print("\^o1ff\f7hook",xoffset+2,camy+22,7)		
-  rectfill(xoffset+6,camy+30,xoffset+13,camy+37,0)  
-  if select_cursor.category==2 then
-	  rect(xoffset+5,camy+29,xoffset+14,camy+38,11)
-	 end
-  spr(items.hooks[items.active_hook],xoffset+6,camy+30)
-  --*** bait
-  print("\^o1ff\f7bait",xoffset+2,camy+42,7)		
-  rectfill(xoffset+6,camy+50,xoffset+13,camy+57,0)  
-  if select_cursor.category==3 then
-	  rect(xoffset+5,camy+49,xoffset+14,camy+58,11)
-	 end
-  spr(items.baits[items.active_bait],xoffset+6,camy+50) 
+		if fishing_options.layer != "menu" then
+		 for index,item in pairs(items[fishing_options.layer]) do
+		  --*** show item-boxes
+		  local index=index-1
+	   local _x=index-(8*flr(index/8))
+		  local x=camx+(_x*8)+(_x*3)+40
+		  local y=camy+12+(flr(index/8)*11)
+		  rectfill(x-1,y-1,x+8,y+8,0)
+    spr(item.img,x,y)	
+    
+    --*** selection box - items
+    local active_index=items["active_"..fishing_options.layer]-1
+	   local _x=active_index-(8*flr(active_index/8))
+		  local x=camx+(_x*8)+(_x*3)+40
+		  local y=camy+12+(flr(active_index/8)*11)
+		  rect(x-1,y-1,x+8,y+8,8)
+		  
+		  --**** show item name
+		  if index==active_index then
+				 print("\^o1ff\f7"..item.name,40,120,1)
+		  end
+		 end
+		end
+		
+	 --** selection box - menucat
+  local index=fishing_options.menucatindex
+  rect(camx+2,camy+(index*8)+(index*2),camx+34,camy+(index*8)+8+(index*2),11)
 	end
 
  --* help
- if not aim_cursor.active and 
- 			not player.charging and
- 			not bobber.active and
- 			not fishing_options.active and
- 			not new_fish_menu.active
- then
-	 print("\f0⬅️➡️⬆️⬇️\f1 TO MOVE\n"..
-	 						"\f0❎\f1 FISHING OPTIONS\n"..
-	 						"\f0🅾️\f1 START FISHING",
-	 						2+camx,108+camy,1)
- elseif aim_cursor.active and 
- 							not player.charging and
- 							not bobber.active
- then
-	 print("\f0⬅️➡️⬆️⬇️\f1 MOVE CURSOR\n"..
-	 					"\f0🅾️\f1 TO CANCEL\n"..
- 	      "\f0❎\f1 TO CAST",
- 	      2+camx,108+camy,1)
-	elseif player.charging then
- 	print("HOLD \f0❎\f1",2+camx,120+camy,1)
- elseif bobber.active and bobber.state == "idle" then
- 	print("\f0🅾️\f1 TO CANCEL FISHING\n"..
- 							"\f0❎\f1 WHEN FISH BITES",2+camx,114+camy,1)
- elseif fishing_options.active then 	
-  print("\f0⬆️⬇️\f1 SELECT CATEGORY\n"..
-						  "\f0⬅️➡️\f1 SELECT ITEM",
-					   2+camx,114+camy,1)
-	elseif player.fishfight then 	
- 	print("\f0⬅️➡️⬆️⬇️\f1 TO FOLLOW FISH\n"..
- 						 "\f0❎\f1 TO PULL THE LINE",2+camx,114+camy,1)
-	
- elseif new_fish_menu.active then
- 	print("\f0🅾️\f1 TO CLOSE MENU",2+camx,120+camy,1)
+ if help then
+	 if not aim_cursor.active and 
+	 			not player.charging and
+	 			not bobber.active and
+	 			not fishing_options.active and
+	 			not new_fish_menu.active
+	 then
+		 print("\f0⬅️➡️⬆️⬇️\f1 TO MOVE\n"..
+		 						"\f0❎\f1 FISHING OPTIONS\n"..
+		 						"\f0🅾️\f1 START FISHING",
+		 						2+camx,108+camy,1)
+	 elseif aim_cursor.active and 
+	 							not player.charging and
+	 							not bobber.active
+	 then
+		 print("\f0⬅️➡️⬆️⬇️\f1 MOVE CURSOR\n"..
+		 					"\f0🅾️\f1 TO CANCEL\n"..
+	 	      "\f0❎\f1 TO CAST",
+	 	      2+camx,108+camy,1)
+		elseif player.charging then
+	 	print("HOLD \f0❎\f1",2+camx,120+camy,1)
+	 elseif bobber.active and bobber.state == "idle" then
+	 	print("\f0🅾️\f1 TO CANCEL FISHING\n"..
+	 							"\f0❎\f1 WHEN FISH BITES",2+camx,114+camy,1)
+	 elseif fishing_options.active then 	
+	  print("\f0⬆️⬇️\f1 SELECT CATEGORY\n"..
+							  "\f0⬅️➡️\f1 SELECT ITEM\n"..
+							  "\f0❎\f1 ACTIVATE ITEM\n"..
+							  "\f0🅾️\f1 GO BACK",
+						   2+camx,102+camy,1)
+		elseif player.fishfight then 	
+	 	print("\f0⬅️➡️⬆️⬇️\f1 TO FOLLOW FISH\n"..
+	 						 "\f0❎\f1 TO PULL THE LINE",2+camx,114+camy,1)
+		
+	 elseif new_fish_menu.active then
+	 	print("\f0🅾️\f1 TO CLOSE MENU",2+camx,120+camy,1)
+		end
 	end
 end
 -->8
@@ -832,21 +911,6 @@ function color_new(col)
   [8]=col, [9]=col, [10]=col, [11]=col,
   [12]=col, [13]=col, [14]=col, [15]=col
 	}
-end
-
---* sprite animations
-function animate(img,first,last,spd,loop)
- if img < last + 1 - spd then
-  img+=spd
-  
-  if not loop then
-   return last 
-  end
-  
- else
-   img = first
- end
- return img
 end
 
 --* check if table has value
